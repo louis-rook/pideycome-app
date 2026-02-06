@@ -1,26 +1,333 @@
 @import "tailwindcss";
 
+/* =========================================
+   1. VARIABLES DE TU MARCA & BOOTSTRAP DEFAULTS
+   ========================================= */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --primary-color: #ff6d22;
+  --primary-hover: #e65c19;
+  --bg-body: #f4f6f9;      /* Fondo gris suave de la página */
+  --bg-navbar: #ffffff;    /* Blanco puro para el menú */
+  --text-dark: #212529;    /* Negro suave de Bootstrap */
+  --text-muted: #6c757d;   /* Gris texto */
+  --input-bg-icon: #e9ecef; /* Fondo gris del icono del input */
+  --border-color: #ced4da; /* El borde gris CLÁSICO de Bootstrap */
+  --card-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--bg-body); /* Aplicamos el gris suave a todo el sitio */
+  color: var(--text-dark);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
+
+
+
+/* =========================================
+   2. CLASES "PIXEL-PERFECT" BOOTSTRAP
+   ========================================= */
+
+/* Estructura Login */
+.login-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-body);
+  padding: 1rem;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  background-color: white;
+  padding: 2.5rem; /* Ajustado para dar más aire interno */
+  border-radius: 0.75rem; /* rounded-3 de Bootstrap (aprox 12px) */
+  box-shadow: var(--card-shadow);
+  border: 1px solid rgba(0,0,0,.05); /* Borde sutilísimo */
+}
+
+/* Logo Circular */
+.logo-circle {
+  position: relative;
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.5rem auto;
+  
+  /* FONDO BLANCO para limpiar el ruido visual */
+  background-color: white; 
+  
+  /* BORDE SUTIL: Muy fino y gris claro */
+  border: 1px solid rgba(0,0,0,0.08); 
+  
+  /* SOMBRA SUAVE: Le da volumen sin usar líneas gruesas */
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06); 
+
+  overflow: hidden;
+}
+/* Tipografía */
+.h3 {
+  font-size: 1.75rem; /* Bootstrap h3 default */
+  font-weight: 500;   /* fw-normal/medium */
+  color: var(--text-dark);
+  margin-bottom: 0.5rem;
+  line-height: 1.2;
+}
+
+/* === INPUT GROUPS (AJUSTE MILIMÉTRICO) === */
+.input-group {
+  display: flex;
+  position: relative;
+  width: 100%;
+  margin-bottom: 1.25rem; /* Espacio entre inputs */
+}
+
+.input-group-text {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1rem; /* Padding generoso */
+  font-size: 1rem;
+  color: #6c757d;
+  background-color: var(--input-bg-icon);
+  border: 1px solid var(--border-color);
+  border-right: 0; /* SIN borde derecho para unirlo */
+  border-top-left-radius: 0.375rem;
+  border-bottom-left-radius: 0.375rem;
+  min-width: 50px; /* Ancho fijo para alinear iconos */
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  padding: 0.75rem 1rem; /* Mismo padding que el icono */
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--text-dark);
+  background-color: #fff;
+  border: 1px solid var(--border-color);
+  border-left: 0; /* SIN borde izquierdo */
+  border-top-right-radius: 0.375rem;
+  border-bottom-right-radius: 0.375rem;
+  outline: none;
+  transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+}
+
+/* Estado Focus: Ilumina todo el borde de naranja */
+.form-control:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 0.25rem rgba(255, 109, 34, 0.25);
+  /* Un pequeño truco para que el borde del input tape la unión */
+  margin-left: -1px; 
+  border-left: 1px solid var(--primary-color);
+  width: calc(100% + 1px);
+  z-index: 3;
+}
+
+/* === BOTÓN PRIMARIO === */
+.btn-primary {
+  display: inline-block;
+  width: 100%;
+  font-weight: 700;
+  text-align: center;
+  vertical-align: middle;
+  user-select: none;
+  background-color: var(--primary-color);
+  border: 1px solid var(--primary-color);
+  padding: 0.75rem 0.75rem; /* Botón alto */
+  font-size: 1rem;
+  border-radius: 0.375rem;
+  color: white;
+  transition: color .15s ease-in-out,background-color .15s ease-in-out,border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+  cursor: pointer;
+  margin-top: 0.5rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Sombra sutil */
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-hover);
+  border-color: var(--primary-hover);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  transform: translateY(-1px);
+}
+
+.link-primary {
+  color: var(--primary-color);
+  text-decoration: none;
+  font-weight: 600;
+}
+.link-primary:hover {
+  text-decoration: underline;
+}
+
+/* KANBAN (Sin cambios, ya estaba bien) */
+.kanban-board { display: flex; overflow-x: auto; gap: 1.5rem; padding-bottom: 1rem; }
+.kanban-column { min-width: 300px; max-width: 300px; background-color: #f8f9fa; border-radius: 0.5rem; padding: 1rem; height: fit-content; }
+.order-card { background-color: white; border: 1px solid var(--border-color); border-radius: 0.5rem; padding: 1rem; margin-bottom: 1rem; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03); transition: transform 0.2s; border-left: 5px solid transparent; cursor: pointer; }
+
+/* ... (Todo lo anterior se mantiene igual) ... */
+
+/* =========================================
+   3. NAVBAR Y UTILIDADES DE DISEÑO
+   ========================================= */
+.navbar-custom {
+  background-color: var(--bg-navbar);
+  box-shadow: 0 2px 15px rgba(0,0,0,0.04); /* Sombra más suave y difuminada */
+  border-bottom: 1px solid var(--border-color);
+  
+  height: 70px;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+}
+
+.rounded-pill {
+  border-radius: 50rem !important; /* Estilo píldora de Bootstrap */
+}
+
+/* Badge del carrito */
+.badge-danger {
+  background-color: #dc3545;
+  color: white;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.25em 0.4em; /* Ajuste visual para que sea redondo */
+  position: absolute;
+  top: 0;
+  right: 0;
+  transform: translate(25%, -25%);
+}
+
+/* ... Mantenemos tus variables y estilos base anteriores ... */
+
+/* =========================================
+   3. SECCIÓN HERO (Tu código exacto)
+   ========================================= */
+.hero-section {
+  /* Asegúrate de que la ruta de la imagen sea correcta en public/img/Fondo.jpg */
+  background-image: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('/img/Fondo.jpg');
+  height: 43vh;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  position: relative;
+}
+
+.titulo-hero {
+  /* Usamos la variable que definimos en layout.tsx */
+  font-family: var(--font-playfair), serif; 
+  font-size: 4.5rem;
+  font-weight: bold;
+  line-height: 1.1;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.6);
+}
+
+/* Ajuste Responsive para móviles */
+@media (max-width: 768px) {
+  .titulo-hero {
+    font-size: 2.8rem; /* Más pequeño en celular */
+  }
+  .hero-section {
+    height: 50vh;
+  }
+}
+
+.titulo-hero .fuenteY {
+  font-family: var(--font-libre), serif;
+  font-weight: 700;
+  font-style: italic;
+  color: var(--primary-color);
+}
+
+.hero-section p {
+  font-size: 1.25rem;
+  margin-top: 1rem;
+  font-weight: 300;
+}
+
+/* =========================================
+   4. CATEGORÍAS (Grid Responsive)
+   ========================================= */
+.categories-grid {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr); /* 1 columna en móvil */
+  gap: 1.5rem;
+  padding: 1rem;
+}
+
+@media (min-width: 640px) {
+  .categories-grid { grid-template-columns: repeat(2, 1fr); } /* 2 en tablet */
+}
+@media (min-width: 1024px) {
+  .categories-grid { grid-template-columns: repeat(4, 1fr); } /* 4 en escritorio */
+}
+
+/* Tarjeta de Categoría Limpia */
+.cat-card {
+  background: white;
+  border-radius: 1rem;
+  padding: 2rem 1rem;
+  text-align: center;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border: 1px solid #f0f0f0;
+  cursor: pointer;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.cat-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.08);
+  border-color: var(--primary-color-light);
+}
+
+.cat-icon-wrapper {
+  width: 80px;
+  height: 80px;
+  background-color: var(--primary-color-light); /* Naranja muy suave */
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+  color: var(--primary-color);
+}
+
+/* =========================================
+   6. UTILIDADES DE GRILLA (Para productos)
+   ========================================= */
+.responsive-grid {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr); /* 1 columna en celular */
+  gap: 1.5rem;
+  padding-bottom: 2rem;
+}
+
+@media (min-width: 640px) {
+  .responsive-grid { grid-template-columns: repeat(2, 1fr); } /* 2 en tablet vertical */
+}
+
+@media (min-width: 1024px) {
+  .responsive-grid { grid-template-columns: repeat(3, 1fr); } /* 3 en laptop */
+}
+
+@media (min-width: 1280px) {
+  .responsive-grid { grid-template-columns: repeat(4, 1fr); } /* 4 en pantallas grandes */
+}
+
