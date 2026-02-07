@@ -1,25 +1,34 @@
 "use client";
 
+// ============================================================================
+// IMPORTACIONES
+// ============================================================================
 import React, { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+// Librería de Gráficos
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
   AreaChart, Area, PieChart, Pie, Cell
 } from 'recharts';
+// Iconos
 import {
   DollarSign, ShoppingBag, CheckCircle, TrendingUp, Calendar,
   Wallet, Utensils, Clock, Filter, Calculator, Loader2, ArrowRight
 } from "lucide-react";
 
+// APIs y Constantes
 import { getDashboardData } from "@/lib/api/dashboard";
 import { ROLES, PERMISOS } from "@/lib/constants/roles";
 import { getHistorialArqueos } from '@/lib/api/admin-arqueo';
 import ArqueoModal from '@/components/admin/ArqueoModal';
 import OrdersDetailModal from '@/components/admin/OrdersDetailModal';
 
+// Colores para el gráfico de torta
 const COLORS = ['#ff6d22', '#FFBB28', '#FF8042', '#00C49F', '#0088FE'];
 
-// --- KPI CARD ---
+// ============================================================================
+// COMPONENTE: TARJETA KPI (Indicador Clave de Rendimiento)
+// ============================================================================
 function KpiCard({ title, value, icon: Icon, trend, onClick, isClickable }: any) {
   return (
     <div 
@@ -27,9 +36,11 @@ function KpiCard({ title, value, icon: Icon, trend, onClick, isClickable }: any)
       className={`bg-white p-5 rounded-2xl border border-gray-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] transition-all duration-300 ${isClickable ? 'cursor-pointer hover:shadow-lg hover:border-orange-200 group' : 'hover:shadow-lg'}`}
     >
       <div className="flex justify-between items-start mb-4">
+        {/* Icono con fondo naranja suave */}
         <div className={`p-3 rounded-xl ${isClickable ? 'bg-orange-50 text-[#ff6d22]' : 'bg-orange-50'}`}>
           <Icon className="w-6 h-6 text-[#ff6d22]" />
         </div>
+        {/* Etiqueta de Tendencia (opcional) */}
         {trend && (
           <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-full">
             {trend}
@@ -39,6 +50,7 @@ function KpiCard({ title, value, icon: Icon, trend, onClick, isClickable }: any)
       <div>
         <p className="text-sm text-gray-400 font-medium mb-1">{title}</p>
         <h3 className="text-2xl font-extrabold text-gray-800">{value}</h3>
+        {/* Botón "Ver detalle" solo si es clickable */}
         {isClickable && (
           <p className="text-xs text-[#ff6d22] mt-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity font-bold">
             Ver detalle <ArrowRight className="w-3 h-3" />
@@ -49,17 +61,21 @@ function KpiCard({ title, value, icon: Icon, trend, onClick, isClickable }: any)
   );
 }
 
-// --- VIEW COMPONENT ---
+// ============================================================================
+// COMPONENTE PRINCIPAL: VISTA DASHBOARD
+// ============================================================================
 interface DashboardViewProps {
   initialStats: any;
   currentUser: any;
 }
 
 export default function DashboardView({ initialStats, currentUser }: DashboardViewProps) {
+  // --- ESTADOS ---
   const [stats, setStats] = useState<any>(initialStats);
   const [loading, setLoading] = useState(false);
   const user = currentUser;
 
+  // Filtros de fecha
   const [filtro, setFiltro] = useState<'hoy' | 'semana' | 'mes' | 'custom'>('semana');
   const [fechaInicio, setFechaInicio] = useState("");
   const [fechaFin, setFechaFin] = useState("");
@@ -72,7 +88,9 @@ export default function DashboardView({ initialStats, currentUser }: DashboardVi
 
   const router = useRouter();
 
-  // 1. UPDATE DATA (Filtros)
+  // --------------------------------------------------------------------------
+  // EFECTO 1: ACTUALIZAR DATOS AL FILTRAR
+  // --------------------------------------------------------------------------
   useEffect(() => {
     if (isFirstRender.current) {
         isFirstRender.current = false;
@@ -100,7 +118,9 @@ export default function DashboardView({ initialStats, currentUser }: DashboardVi
     updateData();
   }, [filtro, fechaInicio, fechaFin]);
 
-  // 2. CARGAR ARQUEOS
+  // --------------------------------------------------------------------------
+  // EFECTO 2: CARGAR HISTORIAL DE ARQUEOS (Solo Admin/Líder)
+  // --------------------------------------------------------------------------
   useEffect(() => {
      async function loadArqueos() {
         try {
@@ -114,6 +134,7 @@ export default function DashboardView({ initialStats, currentUser }: DashboardVi
      }
   }, [user, showArqueoModal]); 
 
+  // --- HANDLERS ---
   const handleCloseArqueo = async () => {
     setShowArqueoModal(false);
     try {
@@ -124,23 +145,22 @@ export default function DashboardView({ initialStats, currentUser }: DashboardVi
 
   const formatMoney = (val: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(val);
   
+  // Permisos
   const esFinanciero = user && (user.CargoID === ROLES.ADMIN || user.CargoID === ROLES.LIDER);
   const puedeHacerArqueo = user && (user.CargoID === ROLES.ADMIN || user.CargoID === ROLES.LIDER);
 
   // -----------------------------------------------------------------------
-  // 3. RESTAURACIÓN DE LA VISTA OPERATIVA (Meseros, Cajeros, Cocineros)
+  // RENDER: VISTA OPERATIVA (Meseros, Cajeros, Cocineros)
   // -----------------------------------------------------------------------
   if (user && !esFinanciero && (user.CargoID === ROLES.MESERO || user.CargoID === ROLES.COCINERO || user.CargoID === ROLES.CAJERO)) {
     return (
       <div className="flex flex-col items-center justify-center h-[80vh] bg-[#F8F9FA]">
         <div className="bg-white p-10 rounded-3xl shadow-xl border border-gray-100 text-center max-w-md mx-4 animate-in zoom-in-95 duration-300">
           
-          {/* Avatar / Icono */}
           <div className="w-24 h-24 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm">
             <span className="text-5xl">👨‍🍳</span>
           </div>
 
-          {/* Saludo Personalizado */}
           <h2 className="text-3xl font-bold text-gray-800 mb-3 font-playfair">
             Hola, <span className="text-[#ff6d22]">{user.Nombres}</span>
           </h2>
@@ -149,7 +169,6 @@ export default function DashboardView({ initialStats, currentUser }: DashboardVi
             Tu perfil de <strong className="text-gray-700">{user.Cargo || 'Operativo'}</strong> está enfocado en la atención y operación diaria.
           </p>
 
-          {/* Botón de Acción Principal */}
           <button
             onClick={() => router.push('/admin/pedidos')}
             className="w-full bg-[#ff6d22] hover:bg-[#e05e1a] text-white font-bold py-4 rounded-xl shadow-lg shadow-orange-200 hover:scale-105 transition-all flex items-center justify-center gap-2 group"
@@ -164,39 +183,42 @@ export default function DashboardView({ initialStats, currentUser }: DashboardVi
   }
 
   // -----------------------------------------------------------------------
-  // VISTA FINANCIERA (Admin / Líder)
+  // RENDER: VISTA FINANCIERA (Admin / Líder)
   // -----------------------------------------------------------------------
   return (
-    <div className="p-6 space-y-8 bg-[#F8F9FA] min-h-screen pb-24">
+    <div className="p-4 sm:p-6 space-y-8 bg-[#F8F9FA] min-h-screen pb-24">
       
-      {/* HEADER & FILTROS */}
+      {/* --- ENCABEZADO Y FILTROS --- */}
+      {/* [RESPONSIVE]: Flex column en móvil, row en PC */}
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 font-playfair tracking-tight">Dashboard</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 font-playfair tracking-tight">Dashboard</h1>
           <p className="text-gray-500 text-sm mt-1">Hola, <span className="font-bold text-[#ff6d22]">{user?.Nombres}</span></p>
         </div>
 
-        <div className="flex flex-wrap gap-3 items-center bg-white p-2 rounded-2xl shadow-sm border border-gray-100">
-          <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
+        {/* Barra de Filtros */}
+        <div className="flex flex-wrap gap-3 items-center bg-white p-2 rounded-2xl shadow-sm border border-gray-100 w-full xl:w-auto">
+          <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-full sm:w-auto overflow-x-auto">
             {(['hoy', 'semana', 'mes'] as const).map((f) => (
               <button
                 key={f}
                 onClick={() => { setFiltro(f); setFechaInicio(""); setFechaFin(""); }}
-                className={`px-4 py-2 text-xs font-bold rounded-lg capitalize transition-all ${filtro === f ? 'bg-white text-[#ff6d22] shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                className={`flex-1 sm:flex-none px-4 py-2 text-xs font-bold rounded-lg capitalize transition-all whitespace-nowrap ${filtro === f ? 'bg-white text-[#ff6d22] shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
               >
                 {f}
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-2">
-            <input type="date" className="text-xs border-none bg-gray-50 rounded-lg px-3 py-2 text-gray-600 focus:ring-1 focus:ring-[#ff6d22]" onChange={(e) => { setFechaInicio(e.target.value); setFiltro('custom'); }} />
+          {/* Inputs de fecha manual */}
+          <div className="flex items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+            <input type="date" className="flex-1 text-xs border-none bg-gray-50 rounded-lg px-3 py-2 text-gray-600 focus:ring-1 focus:ring-[#ff6d22]" onChange={(e) => { setFechaInicio(e.target.value); setFiltro('custom'); }} />
             <span className="text-gray-300">-</span>
-            <input type="date" className="text-xs border-none bg-gray-50 rounded-lg px-3 py-2 text-gray-600 focus:ring-1 focus:ring-[#ff6d22]" onChange={(e) => { setFechaFin(e.target.value); setFiltro('custom'); }} />
+            <input type="date" className="flex-1 text-xs border-none bg-gray-50 rounded-lg px-3 py-2 text-gray-600 focus:ring-1 focus:ring-[#ff6d22]" onChange={(e) => { setFechaFin(e.target.value); setFiltro('custom'); }} />
           </div>
         </div>
       </div>
 
-      {/* LOADER */}
+      {/* --- INDICADOR DE CARGA --- */}
       {loading && (
           <div className="fixed top-20 right-8 bg-white px-4 py-2 rounded-full shadow-lg border border-orange-100 flex items-center gap-2 z-50 animate-in fade-in slide-in-from-top-2">
               <Loader2 className="w-4 h-4 animate-spin text-[#ff6d22]" />
@@ -204,11 +226,12 @@ export default function DashboardView({ initialStats, currentUser }: DashboardVi
           </div>
       )}
 
-      {/* KPIS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* --- TARJETAS KPI (Indicadores) --- */}
+      {/* [RESPONSIVE]: 1 col en móvil, 2 en tablet, 4 en PC */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <KpiCard title="Ventas Totales" value={formatMoney(stats?.total_ventas || 0)} icon={DollarSign} trend="+12%" />
         
-        {/* TARJETA CLICKABLE PARA PEDIDOS */}
+        {/* Tarjeta interactiva para abrir pedidos */}
         <KpiCard 
            title="Pedidos (Ver Detalle)" 
            value={stats?.pedidos_totales || 0} 
@@ -221,8 +244,11 @@ export default function DashboardView({ initialStats, currentUser }: DashboardVi
         <KpiCard title="Tasa de Entrega" value={`${stats?.pedidos_completados || 0}`} icon={CheckCircle} />
       </div>
 
-      {/* GRÁFICOS */}
+      {/* --- GRÁFICOS --- */}
+      {/* [RESPONSIVE]: 1 col en móvil/tablet, 3 en PC */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          {/* Gráfico de Área (Ventas) */}
           <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col min-w-0">
             <h3 className="font-bold text-gray-800 mb-6 flex items-center gap-2"><TrendingUp className="w-5 h-5 text-[#ff6d22]" /> Ventas</h3>
             <div style={{ width: '100%', height: 300 }}>
@@ -244,6 +270,7 @@ export default function DashboardView({ initialStats, currentUser }: DashboardVi
             </div>
           </div>
 
+          {/* Gráfico de Torta (Categorías) */}
           <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col min-w-0">
             <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-2"><Utensils className="w-5 h-5 text-gray-400" /> Categorías</h3>
             <div style={{ width: '100%', height: 220 }}>
@@ -258,7 +285,8 @@ export default function DashboardView({ initialStats, currentUser }: DashboardVi
                 </PieChart>
               </ResponsiveContainer>
             </div>
-            <div className="mt-4 space-y-2 max-h-[150px] overflow-y-auto">
+            {/* Leyenda Personalizada con scroll */}
+            <div className="mt-4 space-y-2 max-h-[150px] overflow-y-auto pr-2">
                 {stats?.ventas_por_categoria?.map((entry: any, index: number) => (
                     <div key={index} className="flex justify-between text-xs">
                         <span className="flex items-center gap-2">
@@ -272,14 +300,17 @@ export default function DashboardView({ initialStats, currentUser }: DashboardVi
           </div>
       </div>
       
-      {/* SECCIÓN ARQUEOS */}
+      {/* --- SECCIÓN DE ARQUEOS (Cierres de Caja) --- */}
       {puedeHacerArqueo && (
         <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
           <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
             <Calculator className="w-5 h-5 text-[#ff6d22]" /> Últimos Cierres de Caja
           </h3>
+          
+          {/* [RESPONSIVE]: Scroll horizontal para tabla */}
           <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
+            {/* min-w-[600px] fuerza el scroll en móviles para no romper la tabla */}
+            <table className="w-full text-sm text-left min-w-[600px]">
               <thead className="bg-gray-50 text-gray-500 font-medium">
                 <tr>
                   <th className="px-4 py-3">Fecha</th>
@@ -313,15 +344,22 @@ export default function DashboardView({ initialStats, currentUser }: DashboardVi
         </div>
       )}
 
-      {/* BOTÓN FLOTANTE ARQUEO */}
+      {/* --- BOTÓN FLOTANTE (Realizar Cuadre) --- */}
       {puedeHacerArqueo && (
-        <div className="fixed bottom-8 right-8 z-30">
-          <button onClick={() => setShowArqueoModal(true)} className="bg-[#ff6d22] text-white px-6 py-4 rounded-full shadow-xl hover:bg-[#e05e1a] hover:scale-105 transition-all font-bold flex items-center gap-3">
-            <Calculator className="w-5 h-5" /> Realizar Cuadre
+        <div className="fixed bottom-6 right-6 z-30">
+          <button 
+            onClick={() => setShowArqueoModal(true)} 
+            className="bg-[#ff6d22] text-white px-6 py-4 rounded-full shadow-xl hover:bg-[#e05e1a] hover:scale-105 transition-all font-bold flex items-center gap-3 animate-bounce-in"
+          >
+            <Calculator className="w-5 h-5" /> 
+            {/* Texto oculto en móviles muy pequeños */}
+            <span className="hidden sm:inline">Realizar Cuadre</span>
+            <span className="sm:hidden">Cuadrar</span>
           </button>
         </div>
       )}
 
+      {/* --- MODALES --- */}
       <ArqueoModal isOpen={showArqueoModal} onClose={handleCloseArqueo} />
       
       <OrdersDetailModal 

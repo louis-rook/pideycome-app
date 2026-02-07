@@ -16,7 +16,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="min-h-screen bg-[#F8F9FA]">
       
       {/* 1. Sidebar Controlado */}
-      <AdminSidebar isOpen={isSidebarOpen} />
+      <AdminSidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
 
       {/* 2. TopBar Controlado */}
       <TopBar isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />

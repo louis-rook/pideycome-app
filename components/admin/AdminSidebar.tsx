@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect } from 'react'; // 1. Importamos useEffect
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
@@ -14,10 +14,31 @@ import {
 
 interface AdminSidebarProps {
   isOpen: boolean;
+  setIsOpen: (value: boolean) => void; // 2. Agregamos esta función para poder cambiar el estado
 }
 
-export default function AdminSidebar({ isOpen }: AdminSidebarProps) {
+export default function AdminSidebar({ isOpen, setIsOpen }: AdminSidebarProps) {
   const pathname = usePathname();
+
+  // 3. LÓGICA RESPONSIVE: Detectar cambio de tamaño
+  useEffect(() => {
+    const handleResize = () => {
+      // Si el ancho de la pantalla es menor a 768px (Tablet/Móvil)
+      // y el sidebar está abierto, lo cerramos automáticamente.
+      if (window.innerWidth < 768) {
+        setIsOpen(false);
+      }
+    };
+
+    // Ejecutamos la función una vez al cargar por si entra directo desde el móvil
+    handleResize();
+
+    // Escuchamos el evento de redimensionar
+    window.addEventListener('resize', handleResize);
+
+    // Limpiamos el evento cuando el componente se desmonta
+    return () => window.removeEventListener('resize', handleResize);
+  }, [setIsOpen]);
 
   const menuItems = [
     { href: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
@@ -32,10 +53,9 @@ export default function AdminSidebar({ isOpen }: AdminSidebarProps) {
         isOpen ? 'w-64' : 'w-20'
       }`}
     >
-      {/* 1. CABECERA: LOGO + NOMBRE + ATRÁS */}
+      {/* 1. CABECERA: LOGO + NOMBRE */}
       <div className="px-4 mb-8">
         
-        {/* Fila del Logo y Nombre */}
         <div className={`flex items-center gap-3 transition-all duration-300 ${isOpen ? 'justify-start' : 'justify-center'}`}>
             <div className={`relative shrink-0 transition-all duration-300 ${isOpen ? 'w-10 h-10' : 'w-12 h-12'}`}>
                 <Image 
@@ -47,7 +67,6 @@ export default function AdminSidebar({ isOpen }: AdminSidebarProps) {
                 />
             </div>
             
-            {/* Nombre del Restaurante (Se oculta al cerrar) */}
             <div className={`overflow-hidden transition-all duration-300 ${isOpen ? 'opacity-100 w-auto' : 'opacity-0 w-0'}`}>
                 <h1 className="font-playfair font-bold text-gray-800 text-lg leading-tight">Pide&Come</h1>
                 <p className="text-[10px] text-[#ff6d22] font-bold tracking-widest uppercase">Panel Admin</p>
@@ -103,7 +122,6 @@ export default function AdminSidebar({ isOpen }: AdminSidebarProps) {
                 Volver al Sitio Web
             </span>
              
-             {/* Tooltip para el botón de volver */}
              {!isOpen && (
                 <div className="absolute left-14 bg-gray-900 text-white text-xs font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none shadow-lg">
                   Volver
@@ -111,7 +129,6 @@ export default function AdminSidebar({ isOpen }: AdminSidebarProps) {
               )}
         </Link>
         
-        {/* Versión */}
         <div className={`mt-4 text-[10px] text-center text-gray-300 transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0'}`}>
               v2.1.0
         </div>

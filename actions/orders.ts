@@ -1,11 +1,14 @@
 "use server";
 
-import { createAdminClient } from "@/utils/supabase/admin";
-import { createClient } from "@/utils/supabase/server"; // Necesario para obtener el usuario actual en cambio de estado
+// ============================================================================
+// IMPORTACIONES
+// ============================================================================
+import { createAdminClient } from "@/utils/supabase/admin"; // Cliente con permisos totales
+import { createClient } from "@/utils/supabase/server"; // Cliente para identificar al usuario actual
 import { revalidatePath } from "next/cache";
 
 // =========================================================
-// 1. TIPOS
+// 1. TIPOS E INTERFACES
 // =========================================================
 interface CartItem { 
   ProductoID: number; 
@@ -33,11 +36,20 @@ interface CrearPedidoParams {
 // =========================================================
 // 2. FUNCIÓN CREAR PEDIDO (Con Seguridad y Observaciones)
 // =========================================================
+/**
+ * Crea un pedido completo asegurando integridad de datos:
+ * 1. Verifica o crea al Tercero/Cliente.
+ * 2. Recalcula precios desde la BD (evita hackeos desde el frontend).
+ * 3. Inserta cabecera y detalles del pedido.
+ */
 export async function crearPedido({ cliente, items, metodoPago, requiereFactura }: CrearPedidoParams) {
   const supabase = createAdminClient();
 
   try {
-    // A. GESTIÓN DE TERCERO
+    // --------------------------------------------------------
+    // A. GESTIÓN DE TERCERO (Upsert Lógico)
+    // --------------------------------------------------------
+    // Buscamos si ya existe alguien con ese teléfono
     const { data: terceroExistente } = await supabase
       .from('tercero')
       .select('TerceroID')
@@ -58,9 +70,11 @@ export async function crearPedido({ cliente, items, metodoPago, requiereFactura 
     };
 
     if (terceroExistente) {
+      // Si existe, actualizamos sus datos
       terceroID = terceroExistente.TerceroID;
       await supabase.from('tercero').update(datosTercero).eq('TerceroID', terceroID);
     } else {
+      // Si no, lo creamos
       const { data: nuevoTercero, error: errorInsert } = await supabase
         .from('tercero')
         .insert(datosTercero)
@@ -71,7 +85,10 @@ export async function crearPedido({ cliente, items, metodoPago, requiereFactura 
       terceroID = nuevoTercero.TerceroID;
     }
 
+    // --------------------------------------------------------
     // B. GESTIÓN DE CLIENTE (Rol)
+    // --------------------------------------------------------
+    // Verificamos si este Tercero ya tiene el rol de Cliente
     const { data: clienteExistente } = await supabase
       .from('cliente')
       .select('ClienteID')
@@ -83,6 +100,7 @@ export async function crearPedido({ cliente, items, metodoPago, requiereFactura 
     if (clienteExistente) {
       clienteID = clienteExistente.ClienteID;
     } else {
+      // Si no es cliente aún, lo convertimos
       const { data: nuevoCliente, error: errorCliente } = await supabase
         .from('cliente')
         .insert({ TerceroID: terceroID, Activo: true })
@@ -93,7 +111,10 @@ export async function crearPedido({ cliente, items, metodoPago, requiereFactura 
       clienteID = nuevoCliente.ClienteID;
     }
 
-    // C. SEGURIDAD DE PRECIOS
+    // --------------------------------------------------------
+    // C. SEGURIDAD DE PRECIOS (Backend vs Frontend)
+    // --------------------------------------------------------
+    // Consultamos los precios reales en la base de datos para no confiar en lo que manda el navegador
     const ids = items.map(i => i.ProductoID);
     const { data: productosDB } = await supabase
       .from('producto')
@@ -104,11 +125,13 @@ export async function crearPedido({ cliente, items, metodoPago, requiereFactura 
 
     let totalReal = 0;
 
+    // Recorremos los items del carrito y asignamos el precio real
     const itemsProcesados = items.map(itemFront => {
       const prodDB = productosDB.find(p => p.ProductoID === itemFront.ProductoID);
       
       if (!prodDB) throw new Error(`Producto ID ${itemFront.ProductoID} no disponible`);
 
+      // Obtenemos el precio más reciente
       const precios = prodDB.precios?.sort((a: any, b: any) => 
         new Date(b.FechaActivacion).getTime() - new Date(a.FechaActivacion).getTime()
       );
@@ -124,14 +147,16 @@ export async function crearPedido({ cliente, items, metodoPago, requiereFactura 
       };
     });
 
-    // D. INSERTAR PEDIDO
+    // --------------------------------------------------------
+    // D. INSERTAR PEDIDO (Cabecera)
+    // --------------------------------------------------------
     const { data: nuevoPedido, error: errorPedido } = await supabase
       .from('pedido')
       .insert({
         ClienteID: clienteID,
         Fecha: new Date().toISOString(),
         Total: totalReal,
-        EstadoID: 1, 
+        EstadoID: 1, // 1 = Por Confirmar
         MetodoPago: metodoPago,
         FacturaElectronica: requiereFactura
       })
@@ -140,19 +165,22 @@ export async function crearPedido({ cliente, items, metodoPago, requiereFactura 
 
     if (errorPedido) throw new Error(`Error creando pedido: ${errorPedido.message}`);
 
-    // E. INSERTAR DETALLES
+    // --------------------------------------------------------
+    // E. INSERTAR DETALLES (Productos)
+    // --------------------------------------------------------
     const detallesParaInsertar = itemsProcesados.map(item => ({
       PedidoID: nuevoPedido.PedidoID,
       ProductoID: item.ProductoID,
       Cantidad: item.Cantidad,
-      PrecioUnit: item.Precio,      // Usamos 'PrecioUnit'
-      Observaciones: item.Observaciones // Usamos 'Observaciones'
+      PrecioUnit: item.Precio,      // Precio seguro
+      Observaciones: item.Observaciones
     }));
 
     const { error: errorDetalles } = await supabase
       .from('detallepedido')
       .insert(detallesParaInsertar);
 
+    // Rollback manual si fallan los detalles
     if (errorDetalles) {
       await supabase.from('pedido').delete().eq('PedidoID', nuevoPedido.PedidoID);
       throw new Error(`Error guardando detalles: ${errorDetalles.message}`);
@@ -170,8 +198,12 @@ export async function crearPedido({ cliente, items, metodoPago, requiereFactura 
 }
 
 // =========================================================
-// 3. FUNCIÓN CAMBIAR ESTADO (Restaurada)
+// 3. FUNCIÓN CAMBIAR ESTADO (Flujo Kanban)
 // =========================================================
+/**
+ * Mueve un pedido de una columna a otra en el tablero Kanban.
+ * Si se registra un pago, asocia al usuario que recibió el dinero.
+ */
 export async function cambiarEstadoPedido(pedidoID: number, nuevoEstadoID: number, detallesPago?: any) {
   const supabaseAdmin = createAdminClient(); 
   const supabaseAuth = await createClient(); // Necesario para obtener el usuario actual
@@ -195,7 +227,7 @@ export async function cambiarEstadoPedido(pedidoID: number, nuevoEstadoID: numbe
                .eq('auth_user_id', user.id)
                .single();
 
-           // 3. Si lo encontramos, lo agregamos al update para que quede registrado
+           // 3. Si lo encontramos, lo agregamos al update para que quede registrado quién cobró
            if (usuarioDB) {
                updateData.UsuarioID = usuarioDB.UsuarioID;
            }
