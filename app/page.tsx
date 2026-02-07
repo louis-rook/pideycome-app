@@ -1,45 +1,14 @@
 import React from 'react';
 import Link from 'next/link';
-// Iconos
-import { Coffee, UtensilsCrossed, CupSoda, CakeSlice, ArrowRight, EggFried, Beef, SoupIcon } from 'lucide-react';
+import { getCategories } from '@/lib/api/categories';
+import CategoryCard from '@/components/CategoryCard';
 
-
-export default function HomePage() {
-  
-  const categorias = [
-    {
-      id: "desayunos",
-      icono: <EggFried className="w-10 h-10" />, 
-      titulo: "Desayunos",
-      descripcion: "EComienza tu día con nuestros deliciosos desayunos, preparados con ingredientes frescos.",
-      link: "/products?categoria=desayunos" 
-    },
-    {
-      id: "platos",
-      icono: <SoupIcon className="w-10 h-10" />, 
-      titulo: "Platos Principales",
-      descripcion: "Disfruta de nuestros platos principales, elaborados con una combinación única de calidad superior.",
-      link: "/products?categoria=platos"
-    },
-    {
-      id: "bebidas",
-      icono: <CupSoda className="w-10 h-10" />, 
-      titulo: "Bebidas",
-      descripcion: "Refréscate con nuestra selección de bebidas frías y calientes, perfectas para acompañar tu comida.",
-      link: "/products?categoria=bebidas"
-    },
-    {
-      id: "postres",
-      icono: <CakeSlice className="w-10 h-10" />, 
-      titulo: "Postres",
-      descripcion: "Endulza tu día con nuestros postres caseros, preparados con amor para el cierre de una comida perfecta.",
-      link: "/products?categoria=postres"
-    }
-  ];
+export default async function HomePage() {
+  const categoriasDB = await getCategories();
 
   return (
      <>
-       {/* 1. SECCIÓN HERO (Con tu CSS exacto) */}
+       {/* HERO */}
        <header className="hero-section">
           <div className="container px-4">
              <div className="flex flex-col items-center">
@@ -58,31 +27,22 @@ export default function HomePage() {
           </div>
        </header>
 
-       {/* 2. SECCIÓN DE CATEGORÍAS (Diseño Tarjetas) */}
+       {/* CATEGORÍAS */}
        <section className="max-w-7xl mx-auto px-4 py-16">
            <div className="text-center">
               <h2 className="text-3xl font-bold text-gray-800 mb-2">Explora nuestro menú</h2>
               <div className="w-16 h-1 bg-[#ff6d22] mx-auto rounded-full"></div>
            </div>
 
-           {/* Grilla Responsive (1 col móvil, 2 tablet, 4 pc) */}
-           <div className="categories-grid">
-              {categorias.map((cat, index) => (
-                 <Link href={cat.link} key={index} className="text-decoration-none group">
-                    <div className="cat-card">
-                       {/* Círculo Icono */}
-                       <div className="cat-icon-wrapper group-hover:bg-[#ff6d22] group-hover:text-white transition-colors duration-300">
-                          {cat.icono}
-                       </div>
-                       
-                       <h3 className="text-xl font-bold text-gray-800 mb-2">{cat.titulo}</h3>
-                       <p className="text-gray-500 text-sm mb-4">{cat.descripcion}</p>
-                       
-                       <div className="mt-auto flex items-center text-[#ff6d22] font-bold text-sm">
-                          Ver opciones <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-foorm" />
-                       </div>
-                    </div>
-                 </Link>
+           {/* Mantenemos tu clase de grilla original */}
+           <div className="categories-grid mt-12">
+              {categoriasDB.map((cat: any) => (
+                 <CategoryCard 
+                    key={cat.CategoriaID}
+                    id={cat.CategoriaID}
+                    nombre={cat.Nombre}
+                    descripcion={cat.Descripcion}
+                 />
               ))}
            </div>
        </section>

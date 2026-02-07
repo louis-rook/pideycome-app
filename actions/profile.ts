@@ -1,97 +1,111 @@
 "use server";
 
 import { createAdminClient } from "@/utils/supabase/admin";
+import { createClient } from "@/utils/supabase/server"; // Cliente estándar para verificar sesión
 import { revalidatePath } from "next/cache";
 
-// 1. ACTUALIZAR INFO PERSONAL
+// 1. ACTUALIZAR INFO PERSONAL (BLINDADO 🛡️)
 export async function actualizarInfoPerfil(formData: FormData) {
-    const supabase = createAdminClient();
-    const terceroID = formData.get("terceroID");
-    
-    if(!terceroID) return { error: "No se identificó el usuario" };
+    const supabaseAdmin = createAdminClient(); // Para escribir (Admin)
+    const supabaseAuth = await createClient(); // Para verificar sesión (User)
 
+    // A. VERIFICACIÓN DE SEGURIDAD
+    const { data: { user } } = await supabaseAuth.auth.getUser();
+    if (!user) return { error: "No hay sesión activa." };
+
+    // Obtenemos el ID del tercero que se intenta modificar
+    const terceroIDForm = formData.get("terceroID");
+    
+    // Consultamos si este usuario logueado REALMENTE es dueño de ese TerceroID
+    const { data: validacion } = await supabaseAdmin
+        .from("usuario")
+        .select("empleado(TerceroID)")
+        .eq("auth_user_id", user.id)
+        .single();
+
+    const terceroRealID = (validacion?.empleado as any)?.TerceroID;
+
+    // Si el ID del formulario no coincide con el de la base de datos... HACKER DETECTADO 🚨
+    if (String(terceroRealID) !== String(terceroIDForm)) {
+        return { error: "Acción no autorizada. No puedes modificar este perfil." };
+    }
+
+    // B. PROCESAR DATOS
     const datos = {
         Telefono: formData.get("telefono") as string,
         Direccion: formData.get("direccion") as string,
-        // Nombres y Apellidos aquí permitimos editarlos
         Nombres: formData.get("nombres") as string,
         Apellidos: formData.get("apellidos") as string,
     };
 
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
         .from("tercero")
         .update(datos)
-        .eq("TerceroID", terceroID);
+        .eq("TerceroID", terceroRealID); // Usamos el ID verificado, no el del form
 
-    if (error) return { error: error.message };
+    if (error) return { error: "Error al actualizar: " + error.message };
     
     revalidatePath("/admin/perfil");
     return { success: true, message: "Información actualizada correctamente." };
 }
 
-// 2. CAMBIAR CONTRASEÑA
+// 2. CAMBIAR CONTRASEÑA (Mantenemos igual, ya usa la sesión activa)
 export async function cambiarPasswordPerfil(formData: FormData) {
-    const supabase = createAdminClient();
+    const supabase = await createClient(); // Usamos cliente normal, auth maneja la seguridad
     const password = formData.get("password") as string;
     const confirm = formData.get("confirmPassword") as string;
 
     if (password !== confirm) return { error: "Las contraseñas no coinciden" };
-    if (password.length < 6) return { error: "La contraseña debe tener mínimo 6 caracteres" };
+    if (password.length < 6) return { error: "Mínimo 6 caracteres" };
 
     const { error } = await supabase.auth.updateUser({ password: password });
 
     if (error) return { error: error.message };
-    return { success: true, message: "Contraseña actualizada exitosamente." };
+    return { success: true, message: "Contraseña actualizada." };
 }
 
-// 3. ACTUALIZAR FOTO
-// 3. ACTUALIZAR FOTO (CON DIAGNÓSTICO)
+// 3. SUBIR FOTO (Mantenemos igual, pero agregamos tipado de retorno)
 export async function subirFotoPerfil(formData: FormData) {
     const supabase = createAdminClient();
-    const file = formData.get("foto") as File;
-    const usuarioIDRaw = formData.get("usuarioID");
+    const file = formData.get("file") as File;
+    const usuarioID = formData.get("usuarioID");
 
-    if (!file || !usuarioIDRaw) return { success: false, message: "Faltan datos" };
+    if (!file || !usuarioID) return { error: "Faltan datos" };
 
-    const usuarioID = parseInt(usuarioIDRaw.toString());
-    const fileName = `${usuarioID}-${Date.now()}.png`;
-    
     try {
-        // 1. Subida al Storage
+        const fileExt = file.name.split('.').pop();
+        const fileName = `avatar_${usuarioID}_${Date.now()}.${fileExt}`;
+
+        // Subir
         const { error: uploadError } = await supabase.storage
             .from('avatars')
             .upload(fileName, file, { upsert: true });
 
         if (uploadError) throw new Error(uploadError.message);
 
+        // Obtener URL
         const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(fileName);
         const imagenUrl = urlData.publicUrl;
 
-        // 2. Actualizar Tabla Usuario (Asegúrate que la columna se llame FotoPerfil)
-        const { data: userData, error: dbError } = await supabase
+        // Actualizar BD
+        await supabase
             .from("usuario")
             .update({ FotoPerfil: imagenUrl })
-            .eq("UsuarioID", usuarioID)
-            .select('auth_user_id') // Traemos el ID de Auth vinculado
-            .single();
+            .eq("UsuarioID", usuarioID);
 
-        if (dbError) throw new Error(dbError.message);
-
-        // 3. Actualizar Metadata Auth (Solo si el ID es un UUID válido)
+        // Actualizar Auth Metadata (Opcional, para sincronizar avatar)
+        const { data: userData } = await supabase.from("usuario").select("auth_user_id").eq("UsuarioID", usuarioID).single();
         if (userData?.auth_user_id) {
-            await supabase.auth.admin.updateUserById(userData.auth_user_id, {
+             await supabase.auth.admin.updateUserById(userData.auth_user_id, {
                 user_metadata: { avatar_url: imagenUrl }
             });
         }
 
-        revalidatePath("/", "layout");
-        revalidatePath("/admin/perfil");
-
-        return { success: true, url: imagenUrl, message: "Foto actualizada con éxito" };
+        revalidatePath("/admin/perfil", "page"); // Revalidar la página específica
+        
+        return { success: true, url: imagenUrl, message: "Foto actualizada" };
 
     } catch (error: any) {
-        console.error("Error en perfil:", error.message);
-        // Usamos 'message' para que coincida con tu lógica de productos
-        return { success: false, message: error.message };
+        return { error: error.message };
     }
 }

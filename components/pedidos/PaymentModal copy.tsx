@@ -2,12 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { Banknote, RefreshCw, DollarSign, CheckCircle, X, User, Clock, AlertTriangle, Hash } from 'lucide-react';
-import { imprimirTicket } from '@/utils/printer'; // <--- IMPORTACIÓN NUEVA
 
 interface PaymentModalProps {
   isOpen: boolean;
   pedido: any;
-  rolUsuario: string;
+  rolUsuario: string; // <--- Nuevo: Recibimos el rol
   onClose: () => void;
   onConfirm: (detallesPago: any) => void;
 }
@@ -17,11 +16,13 @@ export default function PaymentModal({ isOpen, pedido, rolUsuario, onClose, onCo
   const [montoRecibido, setMontoRecibido] = useState('');
   const [codigoAuth, setCodigoAuth] = useState('');
 
+    // Lógica: ¿Puede aceptar efectivo? (Solo Admin o Cajero)
   const puedeAceptarEfectivo = rolUsuario.includes('admin') || 
                                rolUsuario.includes('cajero');
 
   useEffect(() => {
     if (pedido && isOpen) {
+        // Si no puede efectivo, forzamos a Datafono por defecto
         if (!puedeAceptarEfectivo) {
             setMetodoPago('Datafono');
         } else {
@@ -39,8 +40,7 @@ export default function PaymentModal({ isOpen, pedido, rolUsuario, onClose, onCo
     return Math.max(0, recibido - (pedido?.Total || 0));
   };
 
-  // --- AQUÍ ESTÁ LA MAGIA ---
-  const handleConfirm = async () => {
+  const handleConfirm = () => {
     if (metodoPago === 'Efectivo') {
         if (!montoRecibido || parseFloat(montoRecibido) < pedido.Total) {
             alert("El monto recibido es insuficiente.");
@@ -53,20 +53,10 @@ export default function PaymentModal({ isOpen, pedido, rolUsuario, onClose, onCo
         }
     }
 
-    // 1. Confirmar pago (Base de datos)
-    // Usamos await por seguridad, aunque onConfirm suele ser void
-    await onConfirm({
+    onConfirm({
         metodo: metodoPago,
         monto: montoRecibido || pedido.Total,
         referencia: codigoAuth
-    });
-
-    // 2. IMPRIMIR TICKET AUTOMÁTICAMENTE 🖨️
-    // Le pasamos los datos frescos para que salgan en el ticket al instante
-    imprimirTicket(pedido.PedidoID, {
-        metodoPago: metodoPago,
-        recibido: metodoPago === 'Efectivo' ? parseFloat(montoRecibido) : undefined,
-        cambio: metodoPago === 'Efectivo' ? calcularVueltas() : undefined
     });
   };
 
@@ -74,6 +64,7 @@ export default function PaymentModal({ isOpen, pedido, rolUsuario, onClose, onCo
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose}></div>
         
+        {/* Modal Ancho (max-w-4xl) para replicar tu diseño original */}
         <div className="relative bg-white w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
             
             {/* Header */}
@@ -88,8 +79,10 @@ export default function PaymentModal({ isOpen, pedido, rolUsuario, onClose, onCo
 
             <div className="flex flex-col md:flex-row h-full overflow-hidden">
                 
-                {/* COLUMNA IZQUIERDA */}
+                {/* COLUMNA IZQUIERDA: INFO COMPLETA (Restaurada) */}
                 <div className="w-full md:w-1/2 bg-gray-50 p-6 border-r border-gray-200 flex flex-col overflow-y-auto">
+                     
+                     {/* Datos Cliente */}
                      <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-6">
                         <h4 className="font-bold text-gray-800 flex items-center gap-2 mb-3">
                             <User className="w-4 h-4 text-[#ff6d22]" /> Datos del Cliente
@@ -116,6 +109,7 @@ export default function PaymentModal({ isOpen, pedido, rolUsuario, onClose, onCo
                         </div>
                      </div>
 
+                     {/* Resumen Items */}
                      <div className="flex-1">
                          <h4 className="font-bold text-gray-800 text-sm mb-2 flex items-center gap-2">
                              <Clock className="w-4 h-4 text-gray-400" /> Resumen de Consumo
@@ -139,12 +133,13 @@ export default function PaymentModal({ isOpen, pedido, rolUsuario, onClose, onCo
                      </div>
                 </div>
 
-                {/* COLUMNA DERECHA */}
+                {/* COLUMNA DERECHA: PAGO */}
                 <div className="w-full md:w-1/2 p-6 bg-white overflow-y-auto flex flex-col justify-center">
                     <h6 className="text-xs font-bold text-gray-400 uppercase mb-4 tracking-wider text-center">Seleccione Método de Pago</h6>
                     
                     <div className="grid grid-cols-3 gap-3 mb-8">
                         {['Efectivo', 'Datafono', 'Transferencia'].map((m) => {
+                            // SI es Efectivo Y NO tiene permiso, no mostramos el botón
                             if (m === 'Efectivo' && !puedeAceptarEfectivo) return null;
 
                             return (

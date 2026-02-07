@@ -23,3 +23,32 @@ export async function getPedidosAdmin() {
   }
   return data;
 }
+
+
+// --- FUNCIÓN PARA IMPRIMIR ---
+export async function getPedidoImpresion(pedidoId: number) {
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase
+    .from('pedido')
+    .select(`
+      PedidoID, Fecha, Total, MetodoPago,
+      cliente (
+        tercero ( Nombres, Apellidos, Direccion, Telefono )
+      ),
+      usuario ( Username ),
+      detallepedido (
+        Cantidad, 
+        PrecioUnit,
+        producto ( Nombre )
+      )
+    `)
+    .eq('PedidoID', pedidoId)
+    .single();
+
+  if (error) {
+    console.error("Error al obtener pedido para impresión:", error.message);
+    return null;
+  }
+  return data;
+}

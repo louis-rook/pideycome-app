@@ -1,40 +1,62 @@
+"use client";
+
 import React from 'react';
 import Link from 'next/link';
-// Usamos iconos de Lucide en lugar de Bootstrap Icons para mantener coherencia, 
-// o puedes seguir usando clases "bi bi-" si cargaste la librería en layout.
-import { Coffee, UtensilsCrossed, CupSoda, CakeSlice } from 'lucide-react';
+import { Coffee, UtensilsCrossed, CupSoda, CakeSlice, ArrowRight, EggFried, SoupIcon } from 'lucide-react';
 
 interface CategoryCardProps {
-  icono: string;
-  titulo: string;
+  id: number;
+  nombre: string;
   descripcion: string;
-  link: string;
 }
 
-// Mapeo simple para traducir tus strings de iconos a componentes Lucide
-const IconMap: any = {
-  "bi-cup-hot": <Coffee className="w-10 h-10 text-primary mb-3" />,
-  "bi-egg-fried": <UtensilsCrossed className="w-10 h-10 text-primary mb-3" />,
-  "bi-cup-straw": <CupSoda className="w-10 h-10 text-primary mb-3" />,
-  "bi-cake2": <CakeSlice className="w-10 h-10 text-primary mb-3" />
+// 1. DICCIONARIO DE ICONOS (Visual)
+const IconMap: Record<string, React.ReactNode> = {
+  "desayunos": <EggFried className="w-10 h-10" />,
+  "platos": <SoupIcon className="w-10 h-10" />,
+  "platos principales": <SoupIcon className="w-10 h-10" />,
+  "bebidas": <CupSoda className="w-10 h-10" />,
+  "postres": <CakeSlice className="w-10 h-10" />,
+  "default": <UtensilsCrossed className="w-10 h-10" />
 };
 
-export default function CategoryCard({ icono, titulo, descripcion, link }: CategoryCardProps) {
+// 2. DICCIONARIO DE LINKS (Lógica de tu filtro)
+// Traduce el ID de la BD a la palabra que espera tu página de productos
+const getSlug = (id: number, nombre: string) => {
+    // Si tus IDs en base de datos son fijos (1,2,3,4):
+    if (id === 1) return 'desayunos';
+    if (id === 2) return 'platos';
+    if (id === 3) return 'bebidas';
+    if (id === 4) return 'postres';
+    
+    // Fallback: si agregas una categoría nueva (ej: ID 5), usa su nombre en minúscula
+    return nombre.toLowerCase().replace(/\s+/g, '');
+};
+
+export default function CategoryCard({ id, nombre, descripcion }: CategoryCardProps) {
+  // Configuración Visual
+  const iconKey = nombre.toLowerCase().includes('platos') ? 'platos' : nombre.toLowerCase();
+  const Icono = IconMap[iconKey] || IconMap["default"];
+
+  // Configuración de Link (Aquí aplicamos la corrección)
+  const slugParaFiltro = getSlug(id, nombre);
+  const link = `/products?categoria=${slugParaFiltro}`;
+
   return (
-    <div className="col-12 col-md-6 col-lg-3">
-      <Link href={link} className="text-decoration-none">
-        <div className="card h-100 border-0 shadow-sm hover:shadow-md transition-all text-center p-4 hover:-translate-y-1">
-          <div className="card-body d-flex flex-column align-items-center">
-            {/* Renderizamos el icono */}
-            <div className="rounded-circle bg-orange-50 p-3 mb-3">
-               {IconMap[icono] || <UtensilsCrossed className="w-8 h-8 text-primary" />}
-            </div>
-            <h5 className="card-title fw-bold text-dark mb-2">{titulo}</h5>
-            <p className="card-text text-muted small">{descripcion}</p>
-            <span className="mt-auto text-primary fw-bold text-sm">Ver opciones &rarr;</span>
-          </div>
+     <Link href={link} className="text-decoration-none group">
+        <div className="cat-card">
+           {/* TU DISEÑO EXACTO */}
+           <div className="cat-icon-wrapper group-hover:bg-[#ff6d22] group-hover:text-white transition-colors duration-300">
+              {Icono}
+           </div>
+           
+           <h3 className="text-xl font-bold text-gray-800 mb-2">{nombre}</h3>
+           <p className="text-gray-500 text-sm mb-4">{descripcion || "Disfruta de nuestro menú."}</p>
+           
+           <div className="mt-auto flex items-center text-[#ff6d22] font-bold text-sm">
+              Ver opciones <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+           </div>
         </div>
-      </Link>
-    </div>
+     </Link>
   );
 }
