@@ -1,16 +1,21 @@
 import React from 'react';
 import { getPerfilUsuario } from '@/lib/api/profile';
-import ProfileView from '@/components/admin/ProfileView'; // Importamos la vista
+import ProfileView from '@/components/admin/ProfileView';
 
+// Metadatos de la página para SEO y pestañas del navegador.
 export const metadata = {
   title: 'Mi Perfil | Pide & Come',
 };
 
 export default async function PerfilPage() {
-    // 1. Fetch de datos en el Servidor (Rápido y Seguro)
+    
+    // 1. FETCH DE DATOS (SERVER SIDE)
+    // Obtenemos la información del usuario logueado (Tercero, Empleado, Usuario).
     const usuario = await getPerfilUsuario();
 
-    // 2. Manejo de caso borde (no usuario)
+    // 2. CONTROL DE ACCESO BÁSICO
+    // Si por alguna razón la sesión falla o no se encuentra el usuario, 
+    // mostramos un mensaje de error amigable.
     if (!usuario) {
         return (
             <div className="p-10 text-center">
@@ -20,6 +25,7 @@ export default async function PerfilPage() {
         );
     }
 
-    // 3. Renderizamos la Vista (Cliente) pasando los datos iniciales
+    // 3. RENDERIZADO DE LA VISTA
+    // Enviamos el objeto 'usuario' completo al componente cliente ProfileView.
     return <ProfileView user={usuario} />;
 }

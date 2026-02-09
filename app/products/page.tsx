@@ -2,25 +2,30 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-// Importamos tipos y API
+						 
 import { getProductos, ProductoConPrecio } from '@/lib/api/products'; 
-// Importamos los componentes desde sus NUEVAS carpetas
+													   
 import ProductCard from '@/components/products/ProductCard';
 import ProductModal from '@/components/products/ProductModal';
 import { Loader2 } from 'lucide-react';
 
+/**
+ * COMPONENTE DE CONTENIDO:
+ * Encapsulado para evitar errores de renderizado de Next.js al usar hooks de navegación.
+ */
 function MenuContent() {
-  const [productos, setProductos] = useState<ProductoConPrecio[]>([]);
-  const [filtro, setFiltro] = useState('todos');
-  const [loading, setLoading] = useState(true);
+  const [productos, setProductos] = useState<ProductoConPrecio[]>([]); // Lista global de productos
+  const [filtro, setFiltro] = useState('todos'); // ID de categoría seleccionada
+  const [loading, setLoading] = useState(true); // Control del spinner inicial
   
-  // ESTADOS DEL MODAL
+  // Estado para el control del detalle/modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<ProductoConPrecio | null>(null);
 
   const searchParams = useSearchParams();
   const categoriaURL = searchParams.get('categoria'); 
 
+  // Carga inicial de datos desde Supabase
   useEffect(() => {
     async function loadData() {
       try {
@@ -35,6 +40,7 @@ function MenuContent() {
     loadData();
   }, []);
 
+  // Sincronización del filtro con los parámetros de la URL
   useEffect(() => {
     if (!categoriaURL || categoriaURL === 'todos') setFiltro('todos');
     else if(categoriaURL === 'desayunos') setFiltro('1'); 
@@ -43,7 +49,7 @@ function MenuContent() {
     else if(categoriaURL === 'postres') setFiltro('4');
   }, [categoriaURL]);
 
-  // FUNCIONES DEL MODAL
+  // Manejadores del Modal
   const handleOpenModal = (product: ProductoConPrecio) => {
     setSelectedProduct(product);
     setIsModalOpen(true);
@@ -54,7 +60,7 @@ function MenuContent() {
     setTimeout(() => setSelectedProduct(null), 200); 
   };
 
-  // Filtrado
+  // Filtrado de la lista en memoria según la categoría activa
   const productosFiltrados = productos.filter(p => {
     if (filtro === 'todos') return true;
     return p.CategoriaID.toString() === filtro;
@@ -71,14 +77,14 @@ function MenuContent() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-10">
       
-      {/* Encabezado */}
+      {/* Encabezado Principal */}
       <div className="text-center mb-10">
         <h1 className="text-4xl font-extrabold text-gray-800 mb-2 font-playfair">Nuestro Menú</h1>
         <p className="text-gray-500 text-lg font-light">Elije tu comida favorita y disfruta</p>
         <div className="w-20 h-1.5 bg-[#ff6d22] mx-auto rounded-full mt-4"></div>
       </div>
 
-      {/* Filtros */}
+      {/* Barra de Filtros (Categorías) */}
       <div className="flex flex-wrap justify-center gap-4 mb-12">
         {[
             { id: 'todos', label: 'Todos' },
@@ -101,7 +107,7 @@ function MenuContent() {
         ))}
       </div>
 
-      {/* Grilla */}
+      {/* Grilla de Productos (Responsive 1 a 4 columnas) */}
       {productosFiltrados.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 pb-10">
           {productosFiltrados.map((producto) => (
@@ -118,7 +124,7 @@ function MenuContent() {
         </div>
       )}
 
-      {/* MODAL CORREGIDO: Usamos la prop 'producto' (español) y quitamos onAddToCart */}
+      {/* Modal de Detalle */}
       <ProductModal 
         isOpen={isModalOpen}
         onClose={handleCloseModal}
@@ -128,6 +134,7 @@ function MenuContent() {
   );
 }
 
+// COMPONENTE PRINCIPAL: Requerido por Next.js para manejar hooks de cliente
 export default function ProductsPage() {
     return (
         <Suspense fallback={<div className="flex justify-center p-10"><Loader2 className="animate-spin" /></div>}>

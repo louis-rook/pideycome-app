@@ -1,34 +1,60 @@
+/* ============================================================================
+   CAPA DE IMPORTACIÓN: Tailwind CSS
+   Se carga la base de Tailwind para permitir el uso de utilidades (px-4, flex, etc.)
+   dentro de los componentes junto con estas clases personalizadas.
+   ============================================================================ */
 @import "tailwindcss";
 
 /* =========================================
    1. VARIABLES DE TU MARCA & BOOTSTRAP DEFAULTS
+   Centralizamos los valores de diseño. Esto permite que si el día de mañana 
+   quieres cambiar el naranja por otro color, solo lo editas aquí y se refleja 
+   en todo el sistema.
    ========================================= */
 :root {
   --primary-color: #ff6d22;
+  /* Naranja corporativo de "Pide y Come" */
   --primary-hover: #e65c19;
-  --bg-body: #f4f6f9;      /* Fondo gris suave de la página */
-  --bg-navbar: #ffffff;    /* Blanco puro para el menú */
-  --text-dark: #212529;    /* Negro suave de Bootstrap */
-  --text-muted: #6c757d;   /* Gris texto */
-  --input-bg-icon: #e9ecef; /* Fondo gris del icono del input */
-  --border-color: #ced4da; /* El borde gris CLÁSICO de Bootstrap */
+  /* Tono más oscuro para estados de interacción (hover) */
+  --bg-body: #f4f6f9;
+  /* Fondo gris muy suave para dar aspecto de aplicación profesional */
+  --bg-navbar: #ffffff;
+  /* Blanco puro para contrastar la barra de navegación */
+  --text-dark: #212529;
+  /* Color de texto principal (Bootstrap default) */
+  --text-muted: #6c757d;
+  /* Gris para descripciones o textos de menor importancia */
+  --input-bg-icon: #e9ecef;
+  /* Gris claro para los fondos de los iconos en los inputs */
+  --border-color: #ced4da;
+  /* Gris estándar para bordes de formularios clásicos */
   --card-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+  /* Sombra tipo 'shadow-lg' para dar profundidad */
 }
 
+/* REGLAS BASE DE CUERPO:
+   Definen el comportamiento global del scroll, el fondo y la tipografía base.
+*/
 body {
-  background-color: var(--bg-body); /* Aplicamos el gris suave a todo el sitio */
+  background-color: var(--bg-body);
+  /* Aplicamos el gris suave definido en variables */
   color: var(--text-dark);
+  /* Texto oscuro por defecto */
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
+  /* Suavizado de fuente para navegadores basados en Webkit */
 }
 
 
 
 /* =========================================
    2. CLASES "PIXEL-PERFECT" BOOTSTRAP
+   Estas clases emulan el diseño clásico de Bootstrap para mantener una
+   estética limpia y corporativa en los módulos de login.
    ========================================= */
 
-/* Estructura Login */
+/* Estructura del contenedor de Login: 
+   Centra la tarjeta vertical y horizontalmente en toda la pantalla. */
 .login-wrapper {
   min-height: 100vh;
   display: flex;
@@ -38,17 +64,22 @@ body {
   padding: 1rem;
 }
 
+/* Tarjeta de Login: 
+   Define el ancho máximo y el espaciado interno para que el formulario no se vea apretado. */
 .login-card {
   width: 100%;
   max-width: 400px;
   background-color: white;
-  padding: 2.5rem; /* Ajustado para dar más aire interno */
-  border-radius: 0.75rem; /* rounded-3 de Bootstrap (aprox 12px) */
+  padding: 2.5rem;
+  border-radius: 0.75rem;
+  /* rounded-3: esquinas suaves pero definidas */
   box-shadow: var(--card-shadow);
-  border: 1px solid rgba(0,0,0,.05); /* Borde sutilísimo */
+  border: 1px solid rgba(0, 0, 0, .05);
+  /* Borde casi invisible para definición */
 }
 
-/* Logo Circular */
+/* Logo Circular:
+   Crea el marco blanco con sombra para resaltar el logo del restaurante en el login. */
 .logo-circle {
   position: relative;
   width: 110px;
@@ -58,79 +89,92 @@ body {
   align-items: center;
   justify-content: center;
   margin: 0 auto 1.5rem auto;
-  
-  /* FONDO BLANCO para limpiar el ruido visual */
-  background-color: white; 
-  
-  /* BORDE SUTIL: Muy fino y gris claro */
-  border: 1px solid rgba(0,0,0,0.08); 
-  
-  /* SOMBRA SUAVE: Le da volumen sin usar líneas gruesas */
-  box-shadow: 0 4px 12px rgba(0,0,0,0.06); 
 
+
+  background-color: white;
+
+
+  border: 1px solid rgba(0, 0, 0, 0.08);
+
+
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
   overflow: hidden;
+  /* Asegura que la imagen dentro no se salga del círculo */
+
 }
-/* Tipografía */
+
+/* Tipografía de encabezados: 
+   Imita el tamaño y peso de un H3 de Bootstrap. */
 .h3 {
-  font-size: 1.75rem; /* Bootstrap h3 default */
-  font-weight: 500;   /* fw-normal/medium */
+  font-size: 1.75rem;
+  font-weight: 500;
   color: var(--text-dark);
   margin-bottom: 0.5rem;
   line-height: 1.2;
 }
 
-/* === INPUT GROUPS (AJUSTE MILIMÉTRICO) === */
+/* === INPUT GROUPS (AJUSTE MILIMÉTRICO) ===
+   Maneja la unión visual del icono con el campo de texto.
+*/
 .input-group {
   display: flex;
   position: relative;
   width: 100%;
-  margin-bottom: 1.25rem; /* Espacio entre inputs */
+  margin-bottom: 1.25rem;
 }
 
+/* Parte izquierda del input (Icono):
+   Define el fondo gris y quita el borde derecho para "pegarse" al input. */
 .input-group-text {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.75rem 1rem; /* Padding generoso */
+  padding: 0.75rem 1rem;
   font-size: 1rem;
   color: #6c757d;
   background-color: var(--input-bg-icon);
   border: 1px solid var(--border-color);
-  border-right: 0; /* SIN borde derecho para unirlo */
+  border-right: 0;
   border-top-left-radius: 0.375rem;
   border-bottom-left-radius: 0.375rem;
-  min-width: 50px; /* Ancho fijo para alinear iconos */
+  min-width: 50px;
 }
 
+/* El campo de texto real:
+   Quita el borde izquierdo para completar la unión con el icono. */
 .form-control {
   display: block;
   width: 100%;
-  padding: 0.75rem 1rem; /* Mismo padding que el icono */
+  padding: 0.75rem 1rem;
   font-size: 1rem;
   font-weight: 400;
   line-height: 1.5;
   color: var(--text-dark);
   background-color: #fff;
   border: 1px solid var(--border-color);
-  border-left: 0; /* SIN borde izquierdo */
+  border-left: 0;
   border-top-right-radius: 0.375rem;
   border-bottom-right-radius: 0.375rem;
   outline: none;
-  transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+  transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out;
 }
 
-/* Estado Focus: Ilumina todo el borde de naranja */
+/* Estado Focus: 
+   Ilumina todo el conjunto en naranja cuando el usuario hace clic.
+   Usa un margen negativo para que el borde naranja tape la unión gris. */
 .form-control:focus {
   border-color: var(--primary-color);
   box-shadow: 0 0 0 0.25rem rgba(255, 109, 34, 0.25);
-  /* Un pequeño truco para que el borde del input tape la unión */
-  margin-left: -1px; 
+
+  margin-left: -1px;
   border-left: 1px solid var(--primary-color);
   width: calc(100% + 1px);
   z-index: 3;
 }
 
-/* === BOTÓN PRIMARIO === */
+/* === BOTÓN PRIMARIO ===
+   Diseñado para ser el centro de atención. Incluye transiciones suaves para hover.
+*/
 .btn-primary {
   display: inline-block;
   width: 100%;
@@ -140,49 +184,81 @@ body {
   user-select: none;
   background-color: var(--primary-color);
   border: 1px solid var(--primary-color);
-  padding: 0.75rem 0.75rem; /* Botón alto */
+  padding: 0.75rem 0.75rem;
   font-size: 1rem;
   border-radius: 0.375rem;
   color: white;
-  transition: color .15s ease-in-out,background-color .15s ease-in-out,border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+  transition: color .15s ease-in-out, background-color .15s ease-in-out, border-color .15s ease-in-out, box-shadow .15s ease-in-out;
   cursor: pointer;
   margin-top: 0.5rem;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Sombra sutil */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .btn-primary:hover {
   background-color: var(--primary-hover);
   border-color: var(--primary-hover);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
   transform: translateY(-1px);
+  /* Efecto de elevación al pasar el mouse */
 }
 
+/* Enlaces estilo Bootstrap */
 .link-primary {
   color: var(--primary-color);
   text-decoration: none;
   font-weight: 600;
 }
+
 .link-primary:hover {
   text-decoration: underline;
 }
 
-/* KANBAN (Sin cambios, ya estaba bien) */
-.kanban-board { display: flex; overflow-x: auto; gap: 1.5rem; padding-bottom: 1rem; }
-.kanban-column { min-width: 300px; max-width: 300px; background-color: #f8f9fa; border-radius: 0.5rem; padding: 1rem; height: fit-content; }
-.order-card { background-color: white; border: 1px solid var(--border-color); border-radius: 0.5rem; padding: 1rem; margin-bottom: 1rem; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03); transition: transform 0.2s; border-left: 5px solid transparent; cursor: pointer; }
+/* =========================================
+   SISTEMA KANBAN (Administración de Pedidos)
+   Define la estructura horizontal de columnas para el flujo operativo.
+   ========================================= */
+.kanban-board {
+  display: flex;
+  overflow-x: auto;
+  /* Permite scroll lateral en pantallas pequeñas */
+  gap: 1.5rem;
+  padding-bottom: 1rem;
+}
 
-/* ... (Todo lo anterior se mantiene igual) ... */
+.kanban-column {
+  min-width: 300px;
+  max-width: 300px;
+  background-color: #f8f9fa;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  height: fit-content;
+}
+
+/* Tarjeta individual de pedido dentro del Kanban */
+.order-card {
+  background-color: white;
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+  transition: transform 0.2s;
+  border-left: 5px solid transparent;
+  /* Reservado para indicadores de color por estado */
+  cursor: pointer;
+}
 
 /* =========================================
    3. NAVBAR Y UTILIDADES DE DISEÑO
    ========================================= */
 .navbar-custom {
   background-color: var(--bg-navbar);
-  box-shadow: 0 2px 15px rgba(0,0,0,0.04); /* Sombra más suave y difuminada */
+  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.04);
   border-bottom: 1px solid var(--border-color);
-  
+
   height: 70px;
   position: sticky;
+  /* Se mantiene fija al hacer scroll */
   top: 0;
   z-index: 1000;
   display: flex;
@@ -190,30 +266,32 @@ body {
 }
 
 .rounded-pill {
-  border-radius: 50rem !important; /* Estilo píldora de Bootstrap */
+  border-radius: 50rem !important;
+  /* Estilo cápsula para botones de categoría */
 }
 
-/* Badge del carrito */
+/* Burbuja roja de notificación para el icono del carrito */
 .badge-danger {
   background-color: #dc3545;
   color: white;
   border-radius: 50%;
   font-size: 0.75rem;
   font-weight: 700;
-  padding: 0.25em 0.4em; /* Ajuste visual para que sea redondo */
+  padding: 0.25em 0.4em;
   position: absolute;
   top: 0;
   right: 0;
   transform: translate(25%, -25%);
 }
 
-/* ... Mantenemos tus variables y estilos base anteriores ... */
+
 
 /* =========================================
-   3. SECCIÓN HERO (Tu código exacto)
+   4. SECCIÓN HERO (Banner Principal)
+   Usa un degradado sobre la imagen para asegurar que el texto blanco sea legible.
    ========================================= */
 .hero-section {
-  /* Asegúrate de que la ruta de la imagen sea correcta en public/img/Fondo.jpg */
+
   background-image: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('/img/Fondo.jpg');
   height: 43vh;
   background-position: center;
@@ -228,19 +306,20 @@ body {
 }
 
 .titulo-hero {
-  /* Usamos la variable que definimos en layout.tsx */
-  font-family: var(--font-playfair), serif; 
+
+  font-family: var(--font-playfair), serif;
   font-size: 4.5rem;
   font-weight: bold;
   line-height: 1.1;
-  text-shadow: 2px 2px 4px rgba(0,0,0,0.6);
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.6);
 }
 
-/* Ajuste Responsive para móviles */
+/* Ajuste de tipografía para móviles en el Hero */
 @media (max-width: 768px) {
   .titulo-hero {
-    font-size: 2.8rem; /* Más pequeño en celular */
+    font-size: 2.8rem;
   }
+
   .hero-section {
     height: 50vh;
   }
@@ -260,23 +339,30 @@ body {
 }
 
 /* =========================================
-   4. CATEGORÍAS (Grid Responsive)
+   5. CATEGORÍAS (Grid Auto-adaptable)
+   Maneja cómo se ven las categorías desde celular hasta escritorio.
    ========================================= */
 .categories-grid {
   display: grid;
-  grid-template-columns: repeat(1, 1fr); /* 1 columna en móvil */
+  grid-template-columns: repeat(1, 1fr);
   gap: 1.5rem;
   padding: 1rem;
 }
 
 @media (min-width: 640px) {
-  .categories-grid { grid-template-columns: repeat(2, 1fr); } /* 2 en tablet */
-}
-@media (min-width: 1024px) {
-  .categories-grid { grid-template-columns: repeat(4, 1fr); } /* 4 en escritorio */
+  .categories-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
-/* Tarjeta de Categoría Limpia */
+@media (min-width: 1024px) {
+  .categories-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* Tarjetas de Categoría:
+   Diseñadas para invitar al clic con una elevación suave en hover. */
 .cat-card {
   background: white;
   border-radius: 1rem;
@@ -293,14 +379,16 @@ body {
 
 .cat-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 10px 20px rgba(0,0,0,0.08);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08);
   border-color: var(--primary-color-light);
 }
 
+/* Círculo contenedor del icono de categoría */
 .cat-icon-wrapper {
   width: 80px;
   height: 80px;
-  background-color: var(--primary-color-light); /* Naranja muy suave */
+  background-color: var(--primary-color-light);
+  /* Naranja muy suave */
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -310,24 +398,30 @@ body {
 }
 
 /* =========================================
-   6. UTILIDADES DE GRILLA (Para productos)
+   6. UTILIDADES DE GRILLA (Para listado de productos)
+   Ajusta el número de productos por fila según el ancho del dispositivo.
    ========================================= */
 .responsive-grid {
   display: grid;
-  grid-template-columns: repeat(1, 1fr); /* 1 columna en celular */
+  grid-template-columns: repeat(1, 1fr);
   gap: 1.5rem;
   padding-bottom: 2rem;
 }
 
 @media (min-width: 640px) {
-  .responsive-grid { grid-template-columns: repeat(2, 1fr); } /* 2 en tablet vertical */
+  .responsive-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (min-width: 1024px) {
-  .responsive-grid { grid-template-columns: repeat(3, 1fr); } /* 3 en laptop */
+  .responsive-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 @media (min-width: 1280px) {
-  .responsive-grid { grid-template-columns: repeat(4, 1fr); } /* 4 en pantallas grandes */
+  .responsive-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }
-

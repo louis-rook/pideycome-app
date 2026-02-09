@@ -1,21 +1,21 @@
 "use client";
 
+// ============================================================================
+// IMPORTACIONES
+// ============================================================================
 import React, { useState } from 'react';
-import { login } from '@/actions/auth';
-// 1. AGREGAMOS ArrowLeft A LAS IMPORTACIONES
+import { login } from '@/actions/auth'; // Acción de validación de credenciales
 import { Lock, Mail, Loader2, ArrowLeft } from 'lucide-react';
 import Image from 'next/image'; 
 import Link from 'next/link';
-// 2. IMPORTAMOS useRouter
 import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  
-  // 3. INICIALIZAMOS EL ROUTER
   const router = useRouter();
 
+  // --- MANEJADOR DE LOGIN ---
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
@@ -24,20 +24,22 @@ export default function LoginPage() {
     const formData = new FormData(e.currentTarget);
     const result = await login(formData);
 
+    // Si la acción devuelve un error (credenciales incorrectas, cuenta inactiva, etc.)
     if (result?.error) {
       setErrorMsg(result.error);
       setLoading(false);
     }
+    // Si tiene éxito, la acción 'login' hace redirect("/admin") internamente.
   };
 
   return (
     <div className="login-wrapper">
       <div className="login-card">
         
-        {/* 4. BOTÓN VOLVER ATRÁS */}
+        {/* Botón de escape: Regresa al Home público del restaurante */}
         <div className="w-full flex justify-start mb-2">
             <button 
-                onClick={() => router.push('/')} // Redirige al inicio (o usa router.back() si prefieres historial)
+                onClick={() => router.push('/')} 
                 className="flex items-center text-sm text-gray-400 hover:text-gray-600 transition-colors"
             >
                 <ArrowLeft className="w-4 h-4 mr-1" />
@@ -45,9 +47,9 @@ export default function LoginPage() {
             </button>
         </div>
 
-        {/* Encabezado */}
+        {/* Encabezado con Logo Circular */}
         <div className="text-center mb-6">
-         <div className="logo-circle">
+          <div className="logo-circle">
              <Image 
                src="/img/logoPyC.png" 
                alt="Logo Restaurante"
@@ -63,13 +65,16 @@ export default function LoginPage() {
           </p>
         </div>
 
+        {/* Mensaje de Error (Feedback) */}
         {errorMsg && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded text-center">
             {errorMsg}
           </div>
         )}
 
+        {/* Formulario de Acceso */}
         <form onSubmit={handleSubmit}>
+          {/* Email */}
           <div className="input-group">
             <span className="input-group-text">
               <Mail className="w-5 h-5" />
@@ -82,6 +87,8 @@ export default function LoginPage() {
               required
             />
           </div>
+
+          {/* Contraseña */}
           <div className="input-group">
             <span className="input-group-text">
               <Lock className="w-5 h-5" />
@@ -94,6 +101,8 @@ export default function LoginPage() {
               required
             />
           </div>
+
+          {/* Botón Submit con estado Loading */}
           <button type="submit" disabled={loading} className="btn-primary">
             {loading ? (
               <div className="flex items-center justify-center gap-2">
@@ -106,6 +115,7 @@ export default function LoginPage() {
           </button>
         </form>
 
+        {/* Enlace para recuperación */}
         <div className="mt-5 text-center" style={{fontSize: '0.9rem'}}>
           <p className="text-muted">
             ¿Olvidaste tu contraseña?{' '}
@@ -117,11 +127,11 @@ export default function LoginPage() {
 
       </div>
       
+      {/* Footer del Login */}
       <div className="fixed bottom-4 w-full text-center text-xs text-muted">
         &copy; {new Date().getFullYear()} Pide y Come
       </div>
       
     </div>
-    
   );
 }
