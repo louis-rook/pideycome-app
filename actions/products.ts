@@ -3,22 +3,17 @@
 // ============================================================================
 // IMPORTACIONES
 // ============================================================================
-import { createAdminClient } from "@/utils/supabase/admin"; // Cliente con permisos totales (Superusuario)
-import { createClient } from "@/utils/supabase/server"; // Cliente para verificar sesión del usuario
+import { createAdminClient } from "@/utils/supabase/admin"; // Cliente con permisos totales
+import { createClient } from "@/utils/supabase/server"; // Cliente para identificar al usuario actual
 import { revalidatePath } from "next/cache";
 
 // --- CONSTANTES DE ROLES ---
-// IDs fijos en base de datos: 1 = Admin, 5 = Líder
 const ID_ADMIN = 1;
 const ID_LIDER = 5;
 
 // ============================================================================
-// FUNCIÓN DE SEGURIDAD (Middleware Manual)
+// FUNCIÓN DE SEGURIDAD (INTACTA)
 // ============================================================================
-/**
- * Verifica paso a paso si el usuario actual tiene permisos para gestionar productos.
- * Valida: Sesión activa -> Usuario en BD -> Empleado vinculado -> Cargo permitido.
- */
 async function verificarPermisosAdminOLider() {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -30,8 +25,7 @@ async function verificarPermisosAdminOLider() {
 
     const supabaseAdmin = createAdminClient();
 
-    // PASO 1: Buscar usuario en nuestra tabla personalizada 'usuario'
-    // Se valida que el campo 'Activo' sea true
+    // PASO 1: Buscar usuario
     const { data: usuarioDB, error: errorUsuario } = await supabaseAdmin
         .from('usuario') 
         .select('UsuarioID, EmpleadoID, Activo') 
@@ -53,8 +47,7 @@ async function verificarPermisosAdminOLider() {
         return false;
     }
 
-    // PASO 2: Buscar datos del empleado vinculado
-    // Se valida que el empleado también esté 'Activo'
+    // PASO 2: Buscar empleado
     const { data: empleadoDB, error: errorEmpleado } = await supabaseAdmin
         .from('empleado')
         .select('CargoID, Activo')
@@ -71,7 +64,7 @@ async function verificarPermisosAdminOLider() {
         return false;
     }
 
-    // PASO 3: Validar que el Cargo sea Admin o Líder
+    // PASO 3: Validar Cargo
     const tienePermiso = empleadoDB.CargoID === ID_ADMIN || empleadoDB.CargoID === ID_LIDER;
 
     if (!tienePermiso) {
@@ -81,7 +74,7 @@ async function verificarPermisosAdminOLider() {
     return tienePermiso;
 }
 
-// Helper para generar URLs públicas de imágenes en Supabase Storage
+// Helper para generar URLs
 function getStorageUrl(path: string) {
   return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/productos/${path}`;
 }
@@ -95,9 +88,19 @@ export async function crearProducto(formData: FormData) {
         return { success: false, message: "No tienes permisos de Administrador o Líder." };
     }
 
-    const supabase = createAdminClient();
+    // --- CAMBIO 1: Inicializamos AMBOS clientes ---
+    const supabaseAdmin = createAdminClient(); // Para Storage (evita líos de permisos)
+    const supabaseAuth = await createClient(); // Para Base de Datos (Para que salga el Log)
     
-    // 2. Extracción de datos del formulario
+    // Obtenemos el ID real del usuario para guardar en 'precios'
+    const { data: { user } } = await supabaseAuth.auth.getUser();
+    let usuarioIDReal = 1; // Default Admin
+    if (user) {
+        const { data: u } = await supabaseAdmin.from('usuario').select('UsuarioID').eq('auth_user_id', user.id).single();
+        if (u) usuarioIDReal = u.UsuarioID;
+    }
+    
+    // 2. Extracción de datos del formulario (IGUAL)
     const nombre = formData.get('nombre') as string;
     const precio = Number(formData.get('precio'));
     const categoria = Number(formData.get('categoria'));
@@ -109,20 +112,19 @@ export async function crearProducto(formData: FormData) {
     let imagenUrl = null;
 
     try {
-        // 3. Subida de imagen al Storage (si existe archivo)
+        // 3. Subida de imagen al Storage (Usamos Admin para asegurar éxito)
         if (imagenFile && imagenFile.size > 0) {
             const fileExt = imagenFile.name.split('.').pop();
-            // Nombre único para evitar colisiones
             const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
             
-            const { error: uploadError } = await supabase.storage.from('productos').upload(fileName, imagenFile);
+            const { error: uploadError } = await supabaseAdmin.storage.from('productos').upload(fileName, imagenFile);
             if (uploadError) throw new Error("Error subiendo imagen");
             
             imagenUrl = getStorageUrl(fileName);
         }
 
-        // 4. INSERTAR PRODUCTO EN BASE DE DATOS
-        const { data: nuevoProd, error: errorProd } = await supabase
+        // 4. INSERTAR PRODUCTO (Usamos supabaseAuth para el Log)
+        const { data: nuevoProd, error: errorProd } = await supabaseAuth
             .from('producto')
             .insert({
                 Nombre: nombre,
@@ -130,26 +132,25 @@ export async function crearProducto(formData: FormData) {
                 CategoriaID: categoria,
                 Ingredientes: ingredientes,
                 Imagen: imagenUrl,
-                activo: true // El producto nace activo por defecto
+                activo: true
             })
             .select('ProductoID')
             .single();
 
         if (errorProd) throw new Error(errorProd.message);
 
-        // 5. INSERTAR PRECIO EN TABLA HISTÓRICA 'precios'
-        const { error: errorPrecio } = await supabase
+        // 5. INSERTAR PRECIO (Usamos supabaseAuth y el ID real)
+        const { error: errorPrecio } = await supabaseAuth
             .from('precios')
             .insert({
                 ProductoID: nuevoProd.ProductoID,
                 Precio: precio,
                 FechaActivacion: new Date().toISOString(),
-                UsuarioCreacion: 1 // TODO: Podría cambiarse por el ID real del usuario creador
+                UsuarioCreacion: usuarioIDReal // Usamos el ID recuperado
             });
 
         if (errorPrecio) console.error("Error guardando precio:", errorPrecio.message);
 
-        // 6. Actualizar caché para que el nuevo producto aparezca al instante
         revalidatePath('/admin/menu');
         revalidatePath('/products');
         
@@ -169,7 +170,17 @@ export async function actualizarProducto(formData: FormData) {
         return { success: false, message: "No tienes permisos." };
     }
     
-    const supabase = createAdminClient();
+    // --- CAMBIO 2: Inicializamos AMBOS clientes ---
+    const supabaseAdmin = createAdminClient(); // Para Storage
+    const supabaseAuth = await createClient(); // Para BD (Log)
+    
+    // Obtenemos el ID real del usuario
+    const { data: { user } } = await supabaseAuth.auth.getUser();
+    let usuarioIDReal = 1;
+    if (user) {
+        const { data: u } = await supabaseAdmin.from('usuario').select('UsuarioID').eq('auth_user_id', user.id).single();
+        if (u) usuarioIDReal = u.UsuarioID;
+    }
     
     // 2. Extracción de datos
     const id = Number(formData.get('id'));
@@ -179,25 +190,24 @@ export async function actualizarProducto(formData: FormData) {
     const descripcion = formData.get('descripcion') as string;
     const ingredientes = formData.get('ingredientes') as string;
     
-    // Manejo inteligente de imagen: Si no suben nueva, mantenemos la anterior
     const imagenFile = formData.get("imagen") as File;
     const imagenAnterior = formData.get("imagenAnterior") as string;
     let imagenUrl = imagenAnterior;
 
     try {
-        // 3. Si hay nueva imagen, subirla y reemplazar URL
+        // 3. Si hay nueva imagen (Usamos Admin)
         if (imagenFile && imagenFile.size > 0) {
             const fileExt = imagenFile.name.split('.').pop();
             const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
             
-            const { error: uploadError } = await supabase.storage.from('productos').upload(fileName, imagenFile);
+            const { error: uploadError } = await supabaseAdmin.storage.from('productos').upload(fileName, imagenFile);
             if (uploadError) throw new Error("Error actualizando imagen");
             
             imagenUrl = getStorageUrl(fileName);
         }
 
-        // 4. ACTUALIZAR DATOS DEL PRODUCTO
-        const { error: updateError } = await supabase
+        // 4. ACTUALIZAR DATOS DEL PRODUCTO (Usamos supabaseAuth para el Log)
+        const { error: updateError } = await supabaseAuth
             .from('producto')
             .update({
                 Nombre: nombre,
@@ -210,18 +220,23 @@ export async function actualizarProducto(formData: FormData) {
 
         if (updateError) throw new Error(updateError.message);
 
-        // 5. GESTIÓN DE PRECIOS (Histórico)
-        // Solo insertamos un nuevo registro en 'precios' si el precio cambió
+        // 5. GESTIÓN DE PRECIOS (Usamos UPSERT para evitar error de duplicados)
         if (precioRaw && Number(precioRaw) > 0) {
-             const { error: errorPrecio } = await supabase
+             const { error: errorPrecio } = await supabaseAuth
             .from('precios')
-            .insert({
+            .upsert({ // Cambiamos insert por upsert
                 ProductoID: id,
                 Precio: Number(precioRaw),
                 FechaActivacion: new Date().toISOString(),
-                UsuarioCreacion: 1 
+                UsuarioCreacion: usuarioIDReal // ID Real
+            }, {
+                onConflict: 'ProductoID, FechaActivacion, Precio', // Ignora si es idéntico
+                ignoreDuplicates: true
             });
-            if (errorPrecio) throw new Error(errorPrecio.message);
+
+            if (errorPrecio) {
+                console.warn("Aviso al guardar precio:", errorPrecio.message);
+            }
         }
 
         revalidatePath('/admin/menu');
@@ -242,10 +257,11 @@ export async function toggleEstadoProducto(productoID: number, nuevoEstado: bool
       return { success: false, message: "No tienes permisos." };
   }
 
-  const supabase = createAdminClient();
+  // Usamos Auth para que el Trigger capture el usuario
+  const supabaseAuth = await createClient(); 
 
   // 2. Actualización simple del campo 'activo'
-  const { error } = await supabase
+  const { error } = await supabaseAuth
     .from("producto")
     .update({ activo: nuevoEstado }) 
     .eq("ProductoID", productoID);

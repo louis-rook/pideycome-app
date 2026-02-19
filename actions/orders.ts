@@ -10,47 +10,64 @@ import { revalidatePath } from "next/cache";
 // =========================================================
 // 1. TIPOS E INTERFACES
 // =========================================================
-interface CartItem { 
-  ProductoID: number; 
-  cantidad: number; 
-  observaciones: string; 
+interface CartItem {
+  ProductoID: number;
+  cantidad: number;
+  observaciones: string;
 }
 
-interface DatosCliente { 
-  nombres: string; 
-  apellidos: string; 
-  telefono: string; 
-  direccion: string; 
-  email?: string; 
-  tipoDocumento?: string; 
-  numeroDocumento?: string; 
+interface DatosCliente {
+  nombres: string;
+  apellidos: string;
+  telefono: string;
+  direccion: string;
+  email?: string;
+  tipoDocumento?: string;
+  numeroDocumento?: string;
 }
 
-interface CrearPedidoParams { 
-  cliente: DatosCliente; 
-  items: CartItem[]; 
-  metodoPago: string; 
-  requiereFactura: boolean; 
+interface CrearPedidoParams {
+  cliente: DatosCliente;
+  items: CartItem[];
+  metodoPago: string;
+  requiereFactura: boolean;
 }
 
 // =========================================================
-// 2. FUNCIÓN CREAR PEDIDO (Con Seguridad y Observaciones)
+// 2. FUNCIÓN CREAR PEDIDO (Optimizada para Logs)
 // =========================================================
 /**
- * Crea un pedido completo asegurando integridad de datos:
- * 1. Verifica o crea al Tercero/Cliente.
- * 2. Recalcula precios desde la BD (evita hackeos desde el frontend).
- * 3. Inserta cabecera y detalles del pedido.
+ * Crea un pedido completo asegurando integridad de datos.
+ * Mantiene el uso de ADMIN para evitar bloqueos RLS, pero inyecta el UsuarioID si existe.
  */
 export async function crearPedido({ cliente, items, metodoPago, requiereFactura }: CrearPedidoParams) {
-  const supabase = createAdminClient();
+  const supabaseAdmin = createAdminClient();
+  const supabaseAuth = await createClient(); // Necesario para saber si hay alguien logueado
 
   try {
     // --------------------------------------------------------
+    // PASO PREVIO: DETECTAR USUARIO (Para el Log)
+    // --------------------------------------------------------
+    let usuarioIDLogueado = null;
+    
+    // Verificamos sesión
+    const { data: { user } } = await supabaseAuth.auth.getUser();
+    
+    if (user) {
+        // Buscamos su ID numérico usando Admin (rápido y seguro)
+        const { data: uDB } = await supabaseAdmin
+            .from('usuario')
+            .select('UsuarioID')
+            .eq('auth_user_id', user.id)
+            .single();
+        
+        if (uDB) usuarioIDLogueado = uDB.UsuarioID;
+    }
+
+    // --------------------------------------------------------
     // A. GESTIÓN DE TERCERO (Upsert Lógico)
     // --------------------------------------------------------
-    // Buscamos si ya existe alguien con ese teléfono
-    const { data: terceroExistente } = await supabase
+    const { data: terceroExistente } = await supabaseAdmin
       .from('tercero')
       .select('TerceroID')
       .eq('Telefono', cliente.telefono)
@@ -70,12 +87,10 @@ export async function crearPedido({ cliente, items, metodoPago, requiereFactura 
     };
 
     if (terceroExistente) {
-      // Si existe, actualizamos sus datos
       terceroID = terceroExistente.TerceroID;
-      await supabase.from('tercero').update(datosTercero).eq('TerceroID', terceroID);
+      await supabaseAdmin.from('tercero').update(datosTercero).eq('TerceroID', terceroID);
     } else {
-      // Si no, lo creamos
-      const { data: nuevoTercero, error: errorInsert } = await supabase
+      const { data: nuevoTercero, error: errorInsert } = await supabaseAdmin
         .from('tercero')
         .insert(datosTercero)
         .select('TerceroID')
@@ -88,8 +103,7 @@ export async function crearPedido({ cliente, items, metodoPago, requiereFactura 
     // --------------------------------------------------------
     // B. GESTIÓN DE CLIENTE (Rol)
     // --------------------------------------------------------
-    // Verificamos si este Tercero ya tiene el rol de Cliente
-    const { data: clienteExistente } = await supabase
+    const { data: clienteExistente } = await supabaseAdmin
       .from('cliente')
       .select('ClienteID')
       .eq('TerceroID', terceroID)
@@ -100,8 +114,7 @@ export async function crearPedido({ cliente, items, metodoPago, requiereFactura 
     if (clienteExistente) {
       clienteID = clienteExistente.ClienteID;
     } else {
-      // Si no es cliente aún, lo convertimos
-      const { data: nuevoCliente, error: errorCliente } = await supabase
+      const { data: nuevoCliente, error: errorCliente } = await supabaseAdmin
         .from('cliente')
         .insert({ TerceroID: terceroID, Activo: true })
         .select('ClienteID')
@@ -114,9 +127,8 @@ export async function crearPedido({ cliente, items, metodoPago, requiereFactura 
     // --------------------------------------------------------
     // C. SEGURIDAD DE PRECIOS (Backend vs Frontend)
     // --------------------------------------------------------
-    // Consultamos los precios reales en la base de datos para no confiar en lo que manda el navegador
     const ids = items.map(i => i.ProductoID);
-    const { data: productosDB } = await supabase
+    const { data: productosDB } = await supabaseAdmin
       .from('producto')
       .select('ProductoID, precios ( Precio, FechaActivacion )')
       .in('ProductoID', ids);
@@ -125,13 +137,11 @@ export async function crearPedido({ cliente, items, metodoPago, requiereFactura 
 
     let totalReal = 0;
 
-    // Recorremos los items del carrito y asignamos el precio real
     const itemsProcesados = items.map(itemFront => {
       const prodDB = productosDB.find(p => p.ProductoID === itemFront.ProductoID);
       
       if (!prodDB) throw new Error(`Producto ID ${itemFront.ProductoID} no disponible`);
 
-      // Obtenemos el precio más reciente
       const precios = prodDB.precios?.sort((a: any, b: any) => 
         new Date(b.FechaActivacion).getTime() - new Date(a.FechaActivacion).getTime()
       );
@@ -148,15 +158,18 @@ export async function crearPedido({ cliente, items, metodoPago, requiereFactura 
     });
 
     // --------------------------------------------------------
-    // D. INSERTAR PEDIDO (Cabecera)
+    // D. INSERTAR PEDIDO (Cabecera) - MODIFICADO
     // --------------------------------------------------------
-    const { data: nuevoPedido, error: errorPedido } = await supabase
+    // Seguimos usando 'supabaseAdmin' para garantizar que se crea, 
+    // pero inyectamos 'UsuarioID: usuarioIDLogueado' para el registro.
+    const { data: nuevoPedido, error: errorPedido } = await supabaseAdmin
       .from('pedido')
       .insert({
         ClienteID: clienteID,
+        UsuarioID: usuarioIDLogueado, // <--- AQUÍ GUARDAMOS QUIÉN LO CREÓ (Si aplica)
         Fecha: new Date().toISOString(),
         Total: totalReal,
-        EstadoID: 1, // 1 = Por Confirmar
+        EstadoID: 1, 
         MetodoPago: metodoPago,
         FacturaElectronica: requiereFactura
       })
@@ -172,17 +185,16 @@ export async function crearPedido({ cliente, items, metodoPago, requiereFactura 
       PedidoID: nuevoPedido.PedidoID,
       ProductoID: item.ProductoID,
       Cantidad: item.Cantidad,
-      PrecioUnit: item.Precio,      // Precio seguro
+      PrecioUnit: item.Precio,
       Observaciones: item.Observaciones
     }));
 
-    const { error: errorDetalles } = await supabase
+    const { error: errorDetalles } = await supabaseAdmin
       .from('detallepedido')
       .insert(detallesParaInsertar);
 
-    // Rollback manual si fallan los detalles
     if (errorDetalles) {
-      await supabase.from('pedido').delete().eq('PedidoID', nuevoPedido.PedidoID);
+      await supabaseAdmin.from('pedido').delete().eq('PedidoID', nuevoPedido.PedidoID);
       throw new Error(`Error guardando detalles: ${errorDetalles.message}`);
     }
 
@@ -198,43 +210,37 @@ export async function crearPedido({ cliente, items, metodoPago, requiereFactura 
 }
 
 // =========================================================
-// 3. FUNCIÓN CAMBIAR ESTADO (Flujo Kanban)
+// 3. FUNCIÓN CAMBIAR ESTADO (Flujo Kanban) - MODIFICADO
 // =========================================================
-/**
- * Mueve un pedido de una columna a otra en el tablero Kanban.
- * Si se registra un pago, asocia al usuario que recibió el dinero.
- */
 export async function cambiarEstadoPedido(pedidoID: number, nuevoEstadoID: number, detallesPago?: any) {
   const supabaseAdmin = createAdminClient(); 
-  const supabaseAuth = await createClient(); // Necesario para obtener el usuario actual
+  const supabaseAuth = await createClient(); // Cliente con Cookies (El que identifica al usuario)
 
   try {
-    // Objeto con los datos a actualizar
     const updateData: any = { EstadoID: nuevoEstadoID };
 
-    // Si viene detallesPago, significa que se está pagando (Paso a EN COLA)
+    // Si hay pago, asignamos el UsuarioID explícitamente también
     if (detallesPago) {
        updateData.MetodoPago = detallesPago.metodo;
 
-       // 1. Buscamos quién es el usuario logueado (Cajero/Mesero)
        const { data: { user } } = await supabaseAuth.auth.getUser();
-       
        if (user) {
-           // 2. Buscamos su ID numérico en la tabla 'usuario'
+           // Buscamos ID numérico rápido
            const { data: usuarioDB } = await supabaseAdmin
                .from('usuario')
                .select('UsuarioID')
                .eq('auth_user_id', user.id)
                .single();
 
-           // 3. Si lo encontramos, lo agregamos al update para que quede registrado quién cobró
-           if (usuarioDB) {
-               updateData.UsuarioID = usuarioDB.UsuarioID;
-           }
+           if (usuarioDB) updateData.UsuarioID = usuarioDB.UsuarioID;
        }
     }
 
-    const { error } = await supabaseAdmin
+    // --- CAMBIO CLAVE AQUÍ ---
+    // Usamos 'supabaseAuth' en lugar de Admin.
+    // Como tienes políticas RLS para Staff ("Staff gestiona pedidos"), esto funcionará 
+    // Y además enviará tu UUID a la base de datos para que el Trigger guarde el Log a tu nombre.
+    const { error } = await supabaseAuth
         .from('pedido')
         .update(updateData)
         .eq('PedidoID', pedidoID);
@@ -242,7 +248,7 @@ export async function cambiarEstadoPedido(pedidoID: number, nuevoEstadoID: numbe
     if (error) throw new Error(error.message);
     
     revalidatePath('/admin/pedidos');
-    revalidatePath('/admin/dashboard'); // Importante revalidar dashboard también
+    revalidatePath('/admin/dashboard');
     return { success: true };
   } catch (error: any) {
     console.error("Error cambiarEstadoPedido:", error.message);

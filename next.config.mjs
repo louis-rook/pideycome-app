@@ -1,13 +1,25 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    // Esto permite que Next.js descargue y optimice las fotos de tu Supabase
     remotePatterns: [
+      // Tu NUEVO proyecto en la nube
       {
-        protocol: 'https',
-        hostname: 'hjwwuxlykwttsxxfzrgc.supabase.co',
-        port: '',
-        pathname: '/storage/v1/object/public/**',
+        protocol: "https",
+        hostname: "oxdqgubjniekrlxhptfm.supabase.co", 
+      },
+      // Localhost (por si acaso sigues probando local)
+      {
+        protocol: "http",
+        hostname: "127.0.0.1",
+      },
+      // Imágenes externas (Opcional)
+      {
+        protocol: "https",
+        hostname: "images.pexels.com",
+      },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
       },
     ],
   },
