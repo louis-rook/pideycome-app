@@ -12,6 +12,8 @@ import {
 
 import { buscarClientePorTelefono } from '@/lib/api/customers'; // Función para consultar terceros en Supabase
 import { crearPedido } from '@/actions/orders'; // Server Action para persistir el pedido
+import { Turnstile } from '@marsidev/react-turnstile';
+
 
 export default function CheckoutPage() {
   // --- EXTRACCIÓN DE CONTEXTO ---
@@ -22,6 +24,7 @@ export default function CheckoutPage() {
   const [telefono, setTelefono] = useState(''); // Celular como identificador único del cliente
   const [loadingLookup, setLoadingLookup] = useState(false); // Feedback visual de carga en búsqueda
   const [clienteEncontrado, setClienteEncontrado] = useState(false); // Define si el icono cambia a check verde
+  const [turnstileToken, setTurnstileToken] = useState(''); // Estado para la seguridad anti-bots
 
   // Estado que agrupa la información del formulario para facilitar el envío
 
@@ -114,6 +117,13 @@ export default function CheckoutPage() {
         }
       }
 
+      // (NUEVO) Validación: Asegurarse de que el token se generó antes de enviar
+      if (!turnstileToken) {
+        alert("Comprobando seguridad de la conexión. Por favor, espera un segundo y vuelve a intentar.");
+        setProcesando(false);
+        return;
+      }
+
       // Estructura de datos consolidada
       const pedidoData = {
         cliente: {
@@ -128,7 +138,8 @@ export default function CheckoutPage() {
         items: carrito,
         total: precioTotal,
         metodoPago,
-        requiereFactura
+        requiereFactura,
+        turnstileToken // <-- (NUEVO) Añadimos el token al payload
       };
 
 
@@ -416,22 +427,33 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              {/* Botón de envío con estado de carga */}
 
 
+              {/* Botón de envío con estado de carga y seguridad */}
               <button
                 type="submit"
-                disabled={procesando}
+                disabled={procesando || !turnstileToken}
                 className="w-full mt-6 btn-primary rounded-xl py-4 font-bold text-lg shadow-xl shadow-orange-100 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed transition-all transform hover:-translate-y-1"
               >
                 {procesando ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" /> Procesando...
                   </>
+                ) : !turnstileToken ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" /> Verificando conexión...
+                  </>
                 ) : (
                   "Confirmar Pedido"
                 )}
               </button>
+            </div>
+            {/* Componente de Seguridad de Cloudflare */}
+            <div className="hidden">
+              <Turnstile
+                siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'}
+                onSuccess={(token) => setTurnstileToken(token)}
+              />
             </div>
           </div>
 

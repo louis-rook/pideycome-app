@@ -3,127 +3,144 @@
 // ============================================================================
 // IMPORTACIONES
 // ============================================================================
-import { createClient } from "@/utils/supabase/server"; // Cliente Supabase para Server Actions
-import { redirect } from "next/navigation"; // Manejo de redirecciones del servidor
-import { revalidatePath } from "next/cache"; // Limpieza de caché
+import { createClient } from "@/utils/supabase/server"; // Cliente Supabase
+import { redirect } from "next/navigation"; // Manejo de redirecciones
+import { revalidatePath } from "next/cache"; // Limpieza de caché de Next.js
+import { getCheckPasswordReset } from "@/lib/api/auth"; // Consulta separada por arquitectura
 
 // ============================================================================
-// 1. FUNCIÓN DE LOGIN
+// 1. INICIO DE SESIÓN
 // ============================================================================
 /**
- * Procesa el inicio de sesión.
- * Verifica credenciales y comprueba si el usuario está obligado a cambiar contraseña.
+ * Procesa el formulario de login, autentica con Supabase y verifica
+ * si el usuario necesita cambiar su contraseña inicial.
+ * * @param {FormData} formData - Datos del formulario (email, password).
  */
 export async function login(formData: FormData) {
-  // Inicializamos cliente de Supabase
   const supabase = await createClient();
 
-  // Extraemos datos del formulario
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
+  // Extraemos y sanitizamos ligeramente los inputs
+  const email = formData.get("email")?.toString().trim();
+  const password = formData.get("password")?.toString();
 
-  // Validación básica
-  if (!email || !password) return { error: "Completa todos los campos" };
+  // SEGURIDAD: Validación básica (Idealmente esto se cambiará por Zod más adelante)
+  if (!email || !password) return { error: "Completa todos los campos requeridos." };
 
-  // --- A. AUTENTICACIÓN CON SUPABASE ---
+  // --- A. MUTACIÓN: AUTENTICACIÓN ---
   const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
 
   if (signInError) {
-    console.error("❌ Login error (Auth):", signInError.message);
-    // Retornamos el error para mostrarlo en la interfaz (ej: "Credenciales inválidas")
-    return { error: `Error: ${signInError.message}` };
+    console.error("❌ Login error:", signInError.message);
+    // SEGURIDAD: Mensaje genérico para no dar pistas de si falló el correo o la clave
+    return { error: "Credenciales inválidas." }; 
   }
 
-  // --- B. VERIFICACIÓN POST-LOGIN (CAMBIO DE CONTRASEÑA) ---
+  // --- B. VERIFICACIÓN POST-LOGIN ---
   try {
-    // Obtenemos el usuario autenticado
     const { data: { user } } = await supabase.auth.getUser();
     
     if (user) {
-        // Consultamos la tabla personalizada 'usuario' para ver el flag 'debecambiarpassword'
-        const { data: usuarioDB, error: dbError } = await supabase
-          .from('usuario')
-          .select('debecambiarpassword')
-          .eq('auth_user_id', user.id)
-          .single();
-        
-        if (dbError) {
-            console.error("⚠️ Error verificando cambio de password:", dbError.message);
-        }
-        
-        // Si el flag es true, forzamos redirección a la vista de cambio de contraseña
-        if (usuarioDB?.debecambiarpassword) {
-            redirect("/change-password"); 
-        }
+      // ARQUITECTURA: Llamamos a la API en lugar de hacer el query directamente aquí
+      const debeCambiar = await getCheckPasswordReset(user.id);
+      
+      if (debeCambiar) {
+        redirect("/change-password"); 
+      }
     }
   } catch (e) {
-    // NOTA IMPORTANTE: En Next.js, 'redirect' lanza un error internamente.
-    // Si lo atrapamos en el catch, debemos volver a lanzarlo para que la redirección funcione.
+    // ARQUITECTURA NEXT.JS: 'redirect' lanza un error especial (NEXT_REDIRECT).
+    // Si lo atrapamos, debemos relanzarlo o la redirección fallará.
     if (e instanceof Error && e.message === 'NEXT_REDIRECT') {
         throw e;
     }
-    // Si es otro error (ej. base de datos), lo logueamos pero permitimos el acceso
-    console.error("Error no crítico en post-login:", e);
+    console.error("⚠️ Error no crítico en post-login:", e);
   }
 
   // --- C. ÉXITO ---
-  revalidatePath("/", "layout"); // Refrescamos la caché para actualizar la UI (ej. mostrar menú)
-  redirect("/admin"); // Enviamos al dashboard
+  // RENDIMIENTO: Limpiamos la caché del layout principal para que la UI 
+  // (ej. Navbar, Sidebar) refleje la nueva sesión inmediatamente.
+  revalidatePath("/", "layout"); 
+  redirect("/admin"); 
 }
 
 // ============================================================================
 // 2. RECUPERAR CONTRASEÑA
 // ============================================================================
 /**
- * Envía un correo electrónico con un enlace mágico para resetear la contraseña.
+ * Solicita a Supabase el envío de un correo con enlace mágico para resetear la clave.
+ * * @param {FormData} formData - Contiene el email del usuario.
  */
 export async function recuperarPassword(formData: FormData) {
     const supabase = await createClient();
-    const email = formData.get("email") as string;
+    const email = formData.get("email")?.toString().trim();
     
-    // Determinamos la URL base (Localhost o Producción)
+    if (!email) return { error: "El correo es obligatorio." };
+    
+    // Determinamos la URL de retorno dinámicamente
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
     
-    // Solicitamos a Supabase el envío del correo
+    // --- MUTACIÓN: SOLICITUD DE RESETEO ---
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${siteUrl}/change-password`, // A dónde vuelve el usuario tras dar clic en el correo
+        redirectTo: `${siteUrl}/change-password`,
     });
 
-    if (error) return { error: error.message };
-    return { success: true, message: "Si el correo existe, recibirás un enlace para restablecer tu contraseña." };
+    if (error) {
+        console.error("❌ Error enviando recuperación:", error.message);
+        return { error: "Ocurrió un error al procesar la solicitud." };
+    }
+
+    // SEGURIDAD: Prevención de enumeración de usuarios. 
+    // Siempre retornamos éxito para que un atacante no sepa si el correo existe o no en la DB.
+    return { success: true, message: "Si el correo existe en nuestro sistema, recibirás un enlace." };
 }
 
 // ============================================================================
 // 3. ACTUALIZAR CONTRASEÑA
 // ============================================================================
 /**
- * Cambia la contraseña del usuario actual y actualiza el flag en la base de datos.
+ * Cambia la contraseña del usuario actual (en Auth y en la tabla personalizada).
+ * * @param {FormData} formData - Contiene la nueva contraseña.
  */
 export async function actualizarPassword(formData: FormData) {
     const supabase = await createClient();
-    const newPassword = formData.get("password") as string;
+    const newPassword = formData.get("password")?.toString();
     
-    if (newPassword.length < 6) return { error: "La contraseña debe tener al menos 6 caracteres" };
-
-    // 1. Actualizar en Supabase Auth
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
-
-    if (error) return { error: error.message };
-
-    // 2. Actualizar flag en tabla 'usuario' (Ya no debe cambiar contraseña)
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-        await supabase.from('usuario').update({ debecambiarpassword: false }).eq('auth_user_id', user.id);
+    // SEGURIDAD: Validación de longitud mínima para contraseñas fuertes
+    if (!newPassword || newPassword.length < 8) {
+        return { error: "Por seguridad, la contraseña debe tener al menos 8 caracteres." };
     }
 
+    // --- A. MUTACIÓN: Actualizar en Supabase Auth ---
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+
+    if (error) {
+        console.error("❌ Error actualizando password auth:", error.message);
+        return { error: "No se pudo actualizar la contraseña." };
+    }
+
+    // --- B. MUTACIÓN: Actualizar flag en tabla 'usuario' ---
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+        await supabase.from('usuario')
+            .update({ debecambiarpassword: false })
+            .eq('auth_user_id', user.id);
+    }
+
+    // ÉXITO
     redirect("/admin");
 }
 
 // ============================================================================
 // 4. CERRAR SESIÓN
 // ============================================================================
+/**
+ * Destruye la sesión actual del usuario en el servidor y redirige al login.
+ */
 export async function logout() {
   const supabase = await createClient();
-  await supabase.auth.signOut(); // Destruye la sesión en el servidor
+  
+  // --- MUTACIÓN: CERRAR SESIÓN ---
+  await supabase.auth.signOut(); 
+  
   redirect('/login');
 }
